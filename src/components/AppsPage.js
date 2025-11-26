@@ -291,6 +291,36 @@ const AppsPage = () => {
     status: 'Available'
   });
 
+  // Helpers to map between UI keys and DB columns
+  const toDbApp = (app) => ({
+    name: app.name || null,
+    description: app.description || null,
+    category: app.category || null,
+    contact: app.contact || null,
+    used_on: Array.isArray(app.usedOn) ? app.usedOn : (app.used_on || null),
+    app_link: app.appLink ?? app.app_link ?? null,
+    image: app.image || null,
+    rating: app.rating !== undefined && app.rating !== null ? parseFloat(app.rating) : 5.0,
+    price: app.price || null,
+    status: app.status || 'Available'
+  });
+
+  const fromDbApp = (row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    contact: row.contact,
+    usedOn: row.used_on || [],
+    appLink: row.app_link,
+    image: row.image,
+    rating: row.rating,
+    price: row.price,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  });
+
   // Load apps from Supabase on mount
   useEffect(() => {
     loadApps();
@@ -299,14 +329,14 @@ const AppsPage = () => {
   const loadApps = async () => {
     try {
       setLoading(true);
-      const data = await db.apps.getAll();
+      const rows = await db.apps.getAll();
       
       // If no apps in database, seed with defaults
-      if (data.length === 0) {
+      if (rows.length === 0) {
         console.log('No apps found, seeding with defaults');
         await seedDefaultApps();
       } else {
-        setApps(data);
+        setApps(rows.map(fromDbApp));
       }
     } catch (error) {
       console.error('Error loading apps:', error);
@@ -319,9 +349,9 @@ const AppsPage = () => {
 
   const seedDefaultApps = async () => {
     try {
-      const promises = defaultApps.map(app => db.apps.create(app));
-      const createdApps = await Promise.all(promises);
-      setApps(createdApps);
+      const payloads = defaultApps.map(toDbApp);
+      const createdRows = await Promise.all(payloads.map(p => db.apps.create(p)));
+      setApps(createdRows.map(fromDbApp));
       setSyncStatus({ type: 'success', message: 'Apps geladen' });
       setTimeout(() => setSyncStatus(null), 3000);
     } catch (error) {
@@ -334,12 +364,9 @@ const AppsPage = () => {
   const addApp = async () => {
     if (newApp.name && newApp.description) {
       try {
-        const app = {
-          ...newApp,
-          rating: parseFloat(newApp.rating)
-        };
-        const createdApp = await db.apps.create(app);
-        setApps([...apps, createdApp]);
+        const payload = toDbApp({ ...newApp, rating: parseFloat(newApp.rating) });
+        const createdRow = await db.apps.create(payload);
+        setApps([...apps, fromDbApp(createdRow)]);
         setSyncStatus({ type: 'success', message: 'App toegevoegd' });
         setTimeout(() => setSyncStatus(null), 3000);
         resetForm();
@@ -354,14 +381,12 @@ const AppsPage = () => {
   const updateApp = async () => {
     if (newApp.name && newApp.description) {
       try {
-        const updates = {
-          ...newApp,
-          rating: parseFloat(newApp.rating)
-        };
-        await db.apps.update(editingApp.id, updates);
-        const updatedApps = apps.map(a => 
-          a.id === editingApp.id ? { ...updates, id: editingApp.id } : a
-        );
+        const updates = toDbApp({ ...newApp, rating: parseFloat(newApp.rating) });
+        const updatedRow = await db.apps.update(editingApp.id, updates);
+        const updated = fromDbApp(updatedRow);
+        const updatedApps = apps.map(a => (
+          a.id === editingApp.id ? updated : a
+        ));
         setApps(updatedApps);
         setSyncStatus({ type: 'success', message: 'App bijgewerkt' });
         setTimeout(() => setSyncStatus(null), 3000);
@@ -464,16 +489,21 @@ const AppsPage = () => {
     reader.onload = async (e) => {
       try {
         const importedApps = JSON.parse(e.target.result);
-        
-        // Import apps to Supabase
-        const promises = importedApps.map(app => {
-          const { id, created_at, ...appData } = app; // Remove id and timestamps
-          return db.apps.create(appData);
+
+        // Normalize keys and import to Supabase
+        const payloads = importedApps.map(app => {
+          const normalized = {
+            ...app,
+            usedOn: app.usedOn ?? app.used_on ?? [],
+            appLink: app.appLink ?? app.app_link ?? ''
+          };
+          const { id, created_at, updated_at, ...rest } = normalized;
+          return toDbApp(rest);
         });
-        
-        const createdApps = await Promise.all(promises);
-        setApps([...apps, ...createdApps]);
-        setSyncStatus({ type: 'success', message: `${createdApps.length} apps geïmporteerd` });
+
+        const createdRows = await Promise.all(payloads.map(p => db.apps.create(p)));
+        setApps([...apps, ...createdRows.map(fromDbApp)]);
+        setSyncStatus({ type: 'success', message: `${createdRows.length} apps geïmporteerd` });
         setTimeout(() => setSyncStatus(null), 3000);
         
         if (fileInputRef.current) {
