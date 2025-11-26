@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, ChevronDown, LogOut } from 'lucide-react';
+import { Bell, Search, ChevronDown, LogOut, Database } from 'lucide-react';
+import { supabase } from '../utils/supabaseClient';
 
 const Header = ({ setIsLoggedIn, setActiveTab }) => {
   const [selectedPlatform, setSelectedPlatform] = useState('Shopify Dashboard');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dbStatus, setDbStatus] = useState('checking'); // 'checking' | 'ok' | 'error'
 
   const platforms = [
     {
@@ -46,6 +48,27 @@ const Header = ({ setIsLoggedIn, setActiveTab }) => {
     localStorage.removeItem('shopify-dashboard-logged-in');
     setIsLoggedIn(false);
   };
+
+  const checkSupabase = async () => {
+    try {
+      // Quick HEAD-like query to validate connection
+      const { error } = await supabase
+        .from('apps')
+        .select('id', { head: true, count: 'exact' })
+        .limit(1);
+      if (error) throw error;
+      setDbStatus('ok');
+    } catch (_) {
+      setDbStatus('error');
+    }
+  };
+
+  useEffect(() => {
+    checkSupabase();
+    const id = setInterval(checkSupabase, 20000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <header className="glass-effect p-4 border-b border-white/10">
@@ -99,6 +122,15 @@ const Header = ({ setIsLoggedIn, setActiveTab }) => {
               </>
             )}
           </div>
+
+          {/* Supabase connection indicator */}
+          <button
+            onClick={checkSupabase}
+            title={dbStatus === 'ok' ? 'Supabase verbonden' : (dbStatus === 'checking' ? 'Verbinding controleren…' : 'Supabase niet bereikbaar')}
+            className="p-2 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <Database className={`w-5 h-5 ${dbStatus === 'ok' ? 'text-green-400' : (dbStatus === 'checking' ? 'text-yellow-400 animate-pulse' : 'text-red-400')}`} />
+          </button>
 
           <button className="relative p-2 text-white/80 hover:text-white transition-colors">
             <Bell className="w-5 h-5" />

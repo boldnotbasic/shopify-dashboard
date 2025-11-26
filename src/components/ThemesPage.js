@@ -569,29 +569,6 @@ const ThemesPage = () => {
           <p className="text-white/60">Beheer en organiseer Shopify themes</p>
         </div>
         <div className="flex items-center space-x-3">
-          {/* GitHub Sync Status */}
-          {githubSync.isConfigured() ? (
-            <div className="flex items-center gap-2 text-sm">
-              <Cloud className="w-4 h-4 text-green-400" />
-              <span className="text-white/70">
-                {lastSyncTime ? `Laatste sync: ${lastSyncTime}` : 'GitHub sync actief'}
-              </span>
-              <button
-                onClick={() => setShowSyncSetup(true)}
-                className="text-blue-400 hover:text-blue-300"
-              >
-                Beheren
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowSyncSetup(true)}
-              className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 hover:bg-blue-500/30 transition-colors"
-            >
-              <CloudOff className="w-4 h-4" />
-              GitHub Sync Setup
-            </button>
-          )}
           <input
             type="text"
             value={themeSearch}
