@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Smartphone, LayoutGrid, Download, Star, ExternalLink, Plus, X, Edit, Trash2, Upload, Save, Info, Cloud, CloudOff } from 'lucide-react';
-import dataStorage from '../utils/dataStorage';
-import githubSync from '../utils/githubSync';
-import GitHubSyncSetup from './GitHubSyncSetup';
+import { Smartphone, LayoutGrid, Download, Star, ExternalLink, Plus, X, Edit, Trash2, Upload, Save, Info, Database, RefreshCw } from 'lucide-react';
+import { db } from '../utils/supabaseClient';
 
 const AppsPage = () => {
   const defaultApps = [
@@ -267,13 +265,9 @@ const AppsPage = () => {
     }
   ];
 
-  const [apps, setApps] = useState(() => {
-    return dataStorage.getItem('shopify-dashboard-apps', defaultApps);
-  });
-
+  const [apps, setApps] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState(null);
-  const [showSyncSetup, setShowSyncSetup] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState(null);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
@@ -297,86 +291,86 @@ const AppsPage = () => {
     status: 'Available'
   });
 
-  // Save apps to enhanced storage whenever apps change
+  // Load apps from Supabase on mount
   useEffect(() => {
-    console.log('Saving apps to storage', apps);
-    dataStorage.setItem('shopify-dashboard-apps', apps);
-    
-    // Auto-sync to GitHub if configured
-    if (githubSync.isConfigured()) {
-      syncToGitHub();
-    }
-  }, [apps]);
-
-  // Load from GitHub on component mount
-  useEffect(() => {
-    if (githubSync.isConfigured()) {
-      loadFromGitHub();
-    }
+    loadApps();
   }, []);
 
-  const syncToGitHub = async () => {
-    if (!githubSync.isConfigured()) return;
-    
+  const loadApps = async () => {
     try {
-      const themes = dataStorage.getItem('shopify-dashboard-themes', []);
-      const result = await githubSync.syncToCloud(themes, apps);
+      setLoading(true);
+      const data = await db.apps.getAll();
       
-      if (result.success) {
-        setSyncStatus({ type: 'success', message: 'Gesynchroniseerd met GitHub' });
-        setLastSyncTime(new Date().toLocaleString());
-        setTimeout(() => setSyncStatus(null), 3000);
+      // If no apps in database, seed with defaults
+      if (data.length === 0) {
+        console.log('No apps found, seeding with defaults');
+        await seedDefaultApps();
       } else {
-        setSyncStatus({ type: 'error', message: `Sync failed: ${result.error}` });
+        setApps(data);
       }
     } catch (error) {
-      setSyncStatus({ type: 'error', message: error.message });
+      console.error('Error loading apps:', error);
+      setSyncStatus({ type: 'error', message: 'Fout bij laden van apps' });
+      setTimeout(() => setSyncStatus(null), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadFromGitHub = async () => {
-    if (!githubSync.isConfigured()) return;
-    
+  const seedDefaultApps = async () => {
     try {
-      const result = await githubSync.loadFromCloud();
-      
-      if (result.success && result.apps.length > 0) {
-        setApps(result.apps);
-        dataStorage.setItem('shopify-dashboard-apps', result.apps);
-        setSyncStatus({ type: 'success', message: 'Geladen van GitHub' });
+      const promises = defaultApps.map(app => db.apps.create(app));
+      const createdApps = await Promise.all(promises);
+      setApps(createdApps);
+      setSyncStatus({ type: 'success', message: 'Apps geladen' });
+      setTimeout(() => setSyncStatus(null), 3000);
+    } catch (error) {
+      console.error('Error seeding apps:', error);
+      setApps(defaultApps); // Fallback to local defaults
+    }
+  };
+
+
+  const addApp = async () => {
+    if (newApp.name && newApp.description) {
+      try {
+        const app = {
+          ...newApp,
+          rating: parseFloat(newApp.rating)
+        };
+        const createdApp = await db.apps.create(app);
+        setApps([...apps, createdApp]);
+        setSyncStatus({ type: 'success', message: 'App toegevoegd' });
+        setTimeout(() => setSyncStatus(null), 3000);
+        resetForm();
+      } catch (error) {
+        console.error('Error adding app:', error);
+        setSyncStatus({ type: 'error', message: 'Fout bij toevoegen app' });
         setTimeout(() => setSyncStatus(null), 3000);
       }
-    } catch (error) {
-      setSyncStatus({ type: 'error', message: error.message });
     }
   };
 
-  const addApp = () => {
+  const updateApp = async () => {
     if (newApp.name && newApp.description) {
-      const app = {
-        ...newApp,
-        id: Date.now(), // Use timestamp for unique ID
-        installs: 0,
-        rating: parseFloat(newApp.rating)
-      };
-      setApps([...apps, app]);
-      resetForm();
-    }
-  };
-
-  const updateApp = () => {
-    console.log('updateApp called', { newApp, editingApp });
-    if (newApp.name && newApp.description) {
-      const updatedApps = apps.map(a => 
-        a.id === editingApp.id 
-          ? { ...newApp, id: editingApp.id, rating: parseFloat(newApp.rating) }
-          : a
-      );
-      console.log('Updating apps', updatedApps);
-      setApps(updatedApps);
-      resetForm();
-    } else {
-      console.log('Validation failed', { name: newApp.name, description: newApp.description });
+      try {
+        const updates = {
+          ...newApp,
+          rating: parseFloat(newApp.rating)
+        };
+        await db.apps.update(editingApp.id, updates);
+        const updatedApps = apps.map(a => 
+          a.id === editingApp.id ? { ...updates, id: editingApp.id } : a
+        );
+        setApps(updatedApps);
+        setSyncStatus({ type: 'success', message: 'App bijgewerkt' });
+        setTimeout(() => setSyncStatus(null), 3000);
+        resetForm();
+      } catch (error) {
+        console.error('Error updating app:', error);
+        setSyncStatus({ type: 'error', message: 'Fout bij bijwerken app' });
+        setTimeout(() => setSyncStatus(null), 3000);
+      }
     }
   };
 
@@ -406,11 +400,20 @@ const AppsPage = () => {
     setShowDeleteConfirm(true);
   };
 
-  const deleteApp = () => {
+  const deleteApp = async () => {
     if (appToDelete) {
-      setApps(apps.filter(a => a.id !== appToDelete.id));
-      setShowDeleteConfirm(false);
-      setAppToDelete(null);
+      try {
+        await db.apps.delete(appToDelete.id);
+        setApps(apps.filter(a => a.id !== appToDelete.id));
+        setSyncStatus({ type: 'success', message: 'App verwijderd' });
+        setTimeout(() => setSyncStatus(null), 3000);
+        setShowDeleteConfirm(false);
+        setAppToDelete(null);
+      } catch (error) {
+        console.error('Error deleting app:', error);
+        setSyncStatus({ type: 'error', message: 'Fout bij verwijderen app' });
+        setTimeout(() => setSyncStatus(null), 3000);
+      }
     }
   };
 
@@ -420,48 +423,83 @@ const AppsPage = () => {
   };
 
   // Restore official list (seed)
-  const applyOfficialSeed = () => {
+  const applyOfficialSeed = async () => {
     if (window.confirm('Wil je de officiële lijst van apps herstellen? Dit vervangt je huidige lijst.')) {
-      setApps(defaultApps);
-      dataStorage.setItem('shopify-dashboard-apps', defaultApps);
-      alert('Officiële lijst is ingesteld en opgeslagen.');
+      try {
+        // Delete all existing apps
+        await Promise.all(apps.map(app => db.apps.delete(app.id)));
+        // Re-seed with defaults
+        await seedDefaultApps();
+        setSyncStatus({ type: 'success', message: 'Officiële lijst hersteld' });
+        setTimeout(() => setSyncStatus(null), 3000);
+      } catch (error) {
+        console.error('Error restoring official seed:', error);
+        setSyncStatus({ type: 'error', message: 'Fout bij herstellen lijst' });
+        setTimeout(() => setSyncStatus(null), 3000);
+      }
     }
   };
 
   // Data management functions
   const handleExport = () => {
-    const success = dataStorage.exportToFile('shopify-dashboard-apps', 'shopify-apps-backup.json');
-    if (success) {
-      alert('Apps data geëxporteerd! Het bestand is gedownload.');
-    } else {
-      alert('Er is een fout opgetreden bij het exporteren.');
-    }
+    const dataStr = JSON.stringify(apps, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `shopify-apps-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setSyncStatus({ type: 'success', message: 'Apps geëxporteerd' });
+    setTimeout(() => setSyncStatus(null), 3000);
   };
 
-  const handleImport = (event) => {
+  const handleImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    dataStorage.importFromFile('shopify-dashboard-apps', file)
-      .then((result) => {
-        setApps(result.data);
-        alert(`Import succesvol! ${result.recordCount} apps geïmporteerd.`);
-        // Reset file input
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const importedApps = JSON.parse(e.target.result);
+        
+        // Import apps to Supabase
+        const promises = importedApps.map(app => {
+          const { id, created_at, ...appData } = app; // Remove id and timestamps
+          return db.apps.create(appData);
+        });
+        
+        const createdApps = await Promise.all(promises);
+        setApps([...apps, ...createdApps]);
+        setSyncStatus({ type: 'success', message: `${createdApps.length} apps geïmporteerd` });
+        setTimeout(() => setSyncStatus(null), 3000);
+        
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-      })
-      .catch((error) => {
-        alert(`Import mislukt: ${error.message}`);
-        // Reset file input
+      } catch (error) {
+        console.error('Import error:', error);
+        setSyncStatus({ type: 'error', message: 'Fout bij importeren' });
+        setTimeout(() => setSyncStatus(null), 3000);
+        
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-      });
+      }
+    };
+    reader.readAsText(file);
   };
 
   const showStorageStats = () => {
-    const stats = dataStorage.getStorageStats('shopify-dashboard-apps');
+    const stats = {
+      hasData: apps.length > 0,
+      recordCount: apps.length,
+      backupCount: 0,
+      lastBackup: null,
+      storageSize: new Blob([JSON.stringify(apps)]).size
+    };
     setStorageStats(stats);
     setShowStorageInfo(true);
   };
@@ -504,29 +542,20 @@ const AppsPage = () => {
           <p className="text-white/60">Beheer en organiseer Shopify apps</p>
         </div>
         <div className="flex items-center space-x-3">
-          {/* GitHub Sync Status */}
-          {githubSync.isConfigured() ? (
-            <div className="flex items-center gap-2 text-sm">
-              <Cloud className="w-4 h-4 text-green-400" />
-              <span className="text-white/70">
-                {lastSyncTime ? `Laatste sync: ${lastSyncTime}` : 'GitHub sync actief'}
-              </span>
-              <button
-                onClick={() => setShowSyncSetup(true)}
-                className="text-blue-400 hover:text-blue-300"
-              >
-                Beheren
-              </button>
-            </div>
-          ) : (
+          {/* Supabase Status */}
+          <div className="flex items-center gap-2 text-sm">
+            <Database className="w-4 h-4 text-green-400" />
+            <span className="text-white/70">
+              {loading ? 'Laden...' : `${apps.length} apps in database`}
+            </span>
             <button
-              onClick={() => setShowSyncSetup(true)}
-              className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 hover:bg-blue-500/30 transition-colors"
+              onClick={loadApps}
+              className="text-blue-400 hover:text-blue-300"
+              title="Ververs data"
             >
-              <CloudOff className="w-4 h-4" />
-              GitHub Sync Setup
+              <RefreshCw className="w-4 h-4" />
             </button>
-          )}
+          </div>
           <input
             type="text"
             value={appSearch}
@@ -774,7 +803,14 @@ const AppsPage = () => {
       )}
 
       {/* Apps by Category */}
-      {Object.keys(groupedApps).length === 0 ? (
+      {loading ? (
+        <div className="gradient-card rounded-xl p-12 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <RefreshCw className="w-12 h-12 text-white/60 animate-spin" />
+            <p className="text-white/70">Apps laden vanuit database...</p>
+          </div>
+        </div>
+      ) : Object.keys(groupedApps).length === 0 ? (
         <div className="gradient-card rounded-xl p-12 text-center">
           <div className="flex flex-col items-center space-y-4">
             <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center">
@@ -963,26 +999,6 @@ const AppsPage = () => {
             : 'bg-red-500 text-white'
         }`}>
           {syncStatus.message}
-        </div>
-      )}
-      
-      {/* GitHub Sync Setup Modal */}
-      {showSyncSetup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="max-w-md w-full">
-            <GitHubSyncSetup 
-              onSetupComplete={() => {
-                setShowSyncSetup(false);
-                loadFromGitHub();
-              }}
-            />
-            <button
-              onClick={() => setShowSyncSetup(false)}
-              className="mt-4 w-full text-white/60 hover:text-white text-center"
-            >
-              Sluiten
-            </button>
-          </div>
         </div>
       )}
     </div>
