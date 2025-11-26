@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Eye, Download, Star, Plus, X, Edit, Trash2, ShieldCheck, Palette, Upload, Info, Database, RefreshCw } from 'lucide-react';
-import { db } from '../utils/supabaseClient';
+import { Eye, Download, Star, Plus, X, Edit, Trash2, ShieldCheck, Palette, Upload, Info, Cloud, CloudOff } from 'lucide-react';
+import dataStorage from '../utils/dataStorage';
+import githubSync from '../utils/githubSync';
+import GitHubSyncSetup from './GitHubSyncSetup';
 
 const ThemesPage = () => {
   const defaultThemes = [
