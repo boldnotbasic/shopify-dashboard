@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS themes (
   verified BOOLEAN DEFAULT false,
   used_on TEXT[], -- Array of store names
   documentation TEXT,
+  validation_documentation TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -56,6 +57,7 @@ CREATE TABLE IF NOT EXISTS projects (
   seo_score INTEGER DEFAULT 0,
   description TEXT,
   url TEXT,
+  logo TEXT,
   icon TEXT, -- Emoji or icon identifier
   color TEXT, -- Theme color for project
   team_size INTEGER DEFAULT 1,
@@ -64,6 +66,10 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Backfill migrations for existing databases
+ALTER TABLE themes ADD COLUMN IF NOT EXISTS validation_documentation TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS logo TEXT;
 
 -- =============================================
 -- BRANDING RESOURCES TABLE

@@ -638,41 +638,7 @@ const AppsPage = () => {
         </div>
       </div>
 
-      <div className="gradient-card rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-white/80 text-sm font-medium">For testing</div>
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={applyOfficialSeed}
-              className="glass-effect px-4 py-3 rounded-lg text-white font-medium hover:bg-white/20 transition-all"
-              title="Herstel officiële lijst"
-            >
-              Herstel lijst
-            </button>
-            <button 
-              onClick={showStorageStats}
-              className="glass-effect px-4 py-3 rounded-lg text-white font-medium flex items-center space-x-2 hover:bg-white/20 transition-all"
-              title="Storage informatie"
-            >
-              <Info className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={handleExport}
-              className="glass-effect px-4 py-3 rounded-lg text-white font-medium flex items-center space-x-2 hover:bg-white/20 transition-all"
-              title="Exporteer apps data"
-            >
-              <Download className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="glass-effect px-4 py-3 rounded-lg text-white font-medium flex items-center space-x-2 hover:bg-white/20 transition-all"
-              title="Importeer apps data"
-            >
-              <Upload className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
+      
 
       {/* Add App Form */}
       {showAddForm && (
