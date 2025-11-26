@@ -3,6 +3,7 @@ import { Eye, Download, Star, Plus, X, Edit, Trash2, ShieldCheck, Palette, Uploa
 import dataStorage from '../utils/dataStorage';
 import githubSync from '../utils/githubSync';
 import GitHubSyncSetup from './GitHubSyncSetup';
+import { db } from '../utils/supabaseClient';
 
 const ThemesPage = () => {
   const defaultThemes = [
@@ -153,9 +154,8 @@ const ThemesPage = () => {
     }
   ];
 
-  const [themes, setThemes] = useState(() => {
-    return dataStorage.getItem('shopify-dashboard-themes', defaultThemes);
-  });
+  const [themes, setThemes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [syncStatus, setSyncStatus] = useState(null);
   const [showSyncSetup, setShowSyncSetup] = useState(false);
@@ -174,13 +174,23 @@ const ThemesPage = () => {
   const [editingDeveloper, setEditingDeveloper] = useState(null);
   const [showDeleteDeveloperConfirm, setShowDeleteDeveloperConfirm] = useState(false);
   const [developerToDelete, setDeveloperToDelete] = useState(null);
-  const applyOfficialSeed = () => {
+  const applyOfficialSeed = async () => {
     if (window.confirm('Wil je de officiële lijst van themes en developers herstellen? Dit vervangt je huidige lijst.')) {
-      setThemes(defaultThemes);
-      setDevelopers(defaultDevelopers);
-      dataStorage.setItem('shopify-dashboard-themes', defaultThemes);
-      dataStorage.setItem('shopify-dashboard-developers', defaultDevelopers);
-      alert('Officiële lijst is ingesteld en opgeslagen.');
+      try {
+        // Delete all existing themes
+        await Promise.all((themes || []).map(t => db.themes.delete(t.id)));
+        // Seed defaults into DB
+        const payloads = defaultThemes.map(toDbTheme);
+        const created = await Promise.all(payloads.map(p => db.themes.create(p)));
+        setThemes(created.map(fromDbTheme));
+        // Keep developers local as voorheen
+        setDevelopers(defaultDevelopers);
+        dataStorage.setItem('shopify-dashboard-developers', defaultDevelopers);
+        alert('Officiële lijst is ingesteld en in database opgeslagen.');
+      } catch (e) {
+        console.error('Seed themes failed:', e);
+        alert('Fout bij herstellen lijst');
+      }
     }
   };
   const [showStorageInfo, setShowStorageInfo] = useState(false);
@@ -219,11 +229,9 @@ const ThemesPage = () => {
     avatar: ''
   });
 
-  // Save themes to enhanced storage whenever themes change
+  // Save themes to enhanced storage whenever themes change (optional local backup)
   useEffect(() => {
     dataStorage.setItem('shopify-dashboard-themes', themes);
-    
-    // Auto-sync to GitHub if configured
     if (githubSync.isConfigured()) {
       syncToGitHub();
     }
@@ -277,28 +285,94 @@ const ThemesPage = () => {
     dataStorage.setItem('shopify-dashboard-developers', developers);
   }, [developers]);
 
-  const addTheme = () => {
+  // Helpers to map UI <-> DB
+  const toDbTheme = (t) => ({
+    name: t.name || null,
+    description: t.description || null,
+    category: t.category || null,
+    rating: t.rating !== undefined && t.rating !== null ? parseFloat(t.rating) : 5.0,
+    downloads: t.downloads !== undefined && t.downloads !== null ? parseInt(t.downloads) : 0,
+    image: t.image || null,
+    price: t.price || null,
+    dev_link: t.devLink ?? t.dev_link ?? null,
+    preview_link: t.previewLink ?? t.preview_link ?? null,
+    documentation_link: t.documentationLink ?? t.documentation_link ?? null,
+    app_builder: t.appBuilder ?? t.app_builder ?? null,
+    verified: !!t.verified,
+    used_on: Array.isArray(t.usedOn) ? t.usedOn : (t.used_on || []),
+    documentation: t.documentation || null
+  });
+
+  const fromDbTheme = (row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    rating: row.rating,
+    downloads: row.downloads,
+    image: row.image,
+    price: row.price,
+    devLink: row.dev_link,
+    previewLink: row.preview_link,
+    documentationLink: row.documentation_link,
+    appBuilder: row.app_builder,
+    verified: row.verified,
+    usedOn: row.used_on || [],
+    documentation: row.documentation,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  });
+
+  // Load from DB on mount
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const rows = await db.themes.getAll();
+        if (!rows || rows.length === 0) {
+          const payloads = defaultThemes.map(toDbTheme);
+          const created = await Promise.all(payloads.map(p => db.themes.create(p)));
+          setThemes(created.map(fromDbTheme));
+        } else {
+          setThemes(rows.map(fromDbTheme));
+        }
+      } catch (e) {
+        console.error('Load themes failed:', e);
+        setThemes(defaultThemes);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const addTheme = async () => {
     if (newTheme.name && newTheme.description && newTheme.price) {
-      const theme = {
-        ...newTheme,
-        id: Date.now(), // Use timestamp for unique ID
-        downloads: 0,
-        rating: parseFloat(newTheme.rating)
-      };
-      setThemes([...themes, theme]);
-      resetForm();
+      try {
+        const payload = toDbTheme({ ...newTheme, rating: parseFloat(newTheme.rating) });
+        const created = await db.themes.create(payload);
+        setThemes([...themes, fromDbTheme(created)]);
+        resetForm();
+      } catch (e) {
+        console.error('Add theme failed:', e);
+        alert('Fout bij toevoegen theme');
+      }
     }
   };
 
-  const updateTheme = () => {
+  const updateTheme = async () => {
     if (newTheme.name && newTheme.description && newTheme.price) {
-      const updatedThemes = themes.map(t => 
-        t.id === editingTheme.id 
-          ? { ...newTheme, id: editingTheme.id, rating: parseFloat(newTheme.rating) }
-          : t
-      );
-      setThemes(updatedThemes);
-      resetForm();
+      try {
+        const updates = toDbTheme({ ...newTheme, rating: parseFloat(newTheme.rating) });
+        const row = await db.themes.update(editingTheme.id, updates);
+        const updated = fromDbTheme(row);
+        const updatedThemes = themes.map(t => t.id === editingTheme.id ? updated : t);
+        setThemes(updatedThemes);
+        resetForm();
+      } catch (e) {
+        console.error('Update theme failed:', e);
+        alert('Fout bij bijwerken theme');
+      }
     }
   };
 
@@ -333,11 +407,17 @@ const ThemesPage = () => {
     setShowDeleteConfirm(true);
   };
 
-  const deleteTheme = () => {
+  const deleteTheme = async () => {
     if (themeToDelete) {
-      setThemes(themes.filter(t => t.id !== themeToDelete.id));
-      setShowDeleteConfirm(false);
-      setThemeToDelete(null);
+      try {
+        await db.themes.delete(themeToDelete.id);
+        setThemes(themes.filter(t => t.id !== themeToDelete.id));
+        setShowDeleteConfirm(false);
+        setThemeToDelete(null);
+      } catch (e) {
+        console.error('Delete theme failed:', e);
+        alert('Fout bij verwijderen theme');
+      }
     }
   };
 
@@ -413,38 +493,51 @@ const ThemesPage = () => {
 
   // Data management functions
   const handleExport = () => {
-    const success = dataStorage.exportToFile('shopify-dashboard-themes', 'shopify-themes-backup.json');
-    if (success) {
-      alert('Themes data geëxporteerd! Het bestand is gedownload.');
-    } else {
-      alert('Er is een fout opgetreden bij het exporteren.');
-    }
+    const dataStr = JSON.stringify(themes, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `shopify-themes-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    dataStorage.importFromFile('shopify-dashboard-themes', file)
-      .then((result) => {
-        setThemes(result.data);
-        alert(`Import succesvol! ${result.recordCount} themes geïmporteerd.`);
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      })
-      .catch((error) => {
-        alert(`Import mislukt: ${error.message}`);
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      });
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        const payloads = imported.map(item => {
+          const { id, created_at, updated_at, ...rest } = item;
+          return toDbTheme(rest);
+        });
+        const created = await Promise.all(payloads.map(p => db.themes.create(p)));
+        setThemes([...themes, ...created.map(fromDbTheme)]);
+        alert(`Import succesvol! ${created.length} themes geïmporteerd.`);
+      } catch (err) {
+        console.error('Import themes failed:', err);
+        alert('Import mislukt.');
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
   };
 
   const showStorageStats = () => {
-    const stats = dataStorage.getStorageStats('shopify-dashboard-themes');
+    const stats = {
+      hasData: themes.length > 0,
+      recordCount: themes.length,
+      backupCount: 0,
+      lastBackup: null,
+      storageSize: new Blob([JSON.stringify(themes)]).size
+    };
     setStorageStats(stats);
     setShowStorageInfo(true);
   };

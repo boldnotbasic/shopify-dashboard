@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Calendar, Users, Clock, X, Edit, Trash2, Copy, Check, ExternalLink, FileText, Palette, Baby, Store, Globe, BookOpen, Briefcase, Rocket, User, Building, Star, Heart, Shield, Zap } from 'lucide-react';
+import { db } from '../utils/supabaseClient';
 
 const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
   // SEO Score Circle Component
@@ -101,10 +102,8 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
     }
   ];
 
-  const [projects, setProjects] = useState(() => {
-    const savedProjects = localStorage.getItem('shopify-dashboard-projects');
-    return savedProjects ? JSON.parse(savedProjects) : defaultProjects;
-  });
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -127,39 +126,109 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
     shopDomain: ''
   });
 
-  // Save projects to localStorage whenever projects change
-  useEffect(() => {
-    localStorage.setItem('shopify-dashboard-projects', JSON.stringify(projects));
-    window.dispatchEvent(new Event('localStorageUpdate'));
-  }, [projects]);
+  // Helpers to map UI <-> DB
+  const toDbProject = (p) => {
+    const teamArr = Array.isArray(p.team)
+      ? p.team
+      : (typeof p.team === 'string' ? p.team.split(',').map(t => t.trim()).filter(Boolean) : []);
+    const tags = [
+      ...teamArr.map(n => `team:${n}`),
+      ...(p.tmsCode ? [`tms:${p.tmsCode}`] : [])
+    ];
+    const date = (p.deadline || '').toString().slice(0,10) || null;
+    return {
+      name: p.name || null,
+      client: p.client || null,
+      status: p.status || 'Planning',
+      budget: p.budget || null,
+      deadline: date,
+      seo_score: p.seoScore !== undefined && p.seoScore !== null ? parseInt(p.seoScore) || 0 : 0,
+      description: p.description || null,
+      url: p.shopDomain || p.url || null,
+      icon: p.icon || null,
+      color: p.iconColor || p.color || null,
+      team_size: teamArr.length,
+      progress: p.progress !== undefined && p.progress !== null ? parseInt(p.progress) || 0 : 0,
+      tags
+    };
+  };
 
-  const addProject = () => {
+  const fromDbProject = (row) => {
+    const tags = row.tags || [];
+    const team = tags.filter(t => String(t).startsWith('team:')).map(t => t.slice(5));
+    const tmsTag = tags.find(t => String(t).startsWith('tms:'));
+    const tmsCode = tmsTag ? String(tmsTag).slice(4) : '';
+    return {
+      id: row.id,
+      name: row.name,
+      client: row.client,
+      status: row.status,
+      progress: row.progress,
+      deadline: row.deadline || '',
+      team,
+      logo: '',
+      icon: row.icon || '',
+      iconColor: row.color || '',
+      tmsCode,
+      description: row.description || '',
+      budget: row.budget || '',
+      shopDomain: row.url || '',
+      seoScore: row.seo_score || 0,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    };
+  };
+
+  // Load from DB on mount (seed defaults if empty)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const rows = await db.projects.getAll();
+        if (!rows || rows.length === 0) {
+          const payloads = defaultProjects.map(toDbProject);
+          const created = await Promise.all(payloads.map(p => db.projects.create(p)));
+          setProjects(created.map(fromDbProject));
+        } else {
+          setProjects(rows.map(fromDbProject));
+        }
+      } catch (e) {
+        console.error('Load projects failed:', e);
+        setProjects(defaultProjects);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const addProject = async () => {
     if (newProject.name && newProject.client && newProject.deadline) {
-      const project = {
-        ...newProject,
-        id: Date.now(),
-        team: newProject.team.split(',').map(t => t.trim()).filter(t => t),
-        progress: parseInt(newProject.progress) || 0
-      };
-      setProjects([...projects, project]);
-      resetForm();
+      try {
+        const payload = toDbProject(newProject);
+        const created = await db.projects.create(payload);
+        setProjects([...projects, fromDbProject(created)]);
+        resetForm();
+      } catch (e) {
+        console.error('Add project failed:', e);
+        alert('Fout bij toevoegen project');
+      }
     }
   };
 
-  const updateProject = () => {
+  const updateProject = async () => {
     if (newProject.name && newProject.client && newProject.deadline) {
-      const updatedProjects = projects.map(p => 
-        p.id === editingProject.id 
-          ? {
-              ...newProject,
-              id: editingProject.id,
-              team: newProject.team.split(',').map(t => t.trim()).filter(t => t),
-              progress: parseInt(newProject.progress) || 0
-            }
-          : p
-      );
-      setProjects(updatedProjects);
-      resetForm();
+      try {
+        const updates = toDbProject(newProject);
+        const row = await db.projects.update(editingProject.id, updates);
+        const updated = fromDbProject(row);
+        const updatedProjects = projects.map(p => p.id === editingProject.id ? updated : p);
+        setProjects(updatedProjects);
+        resetForm();
+      } catch (e) {
+        console.error('Update project failed:', e);
+        alert('Fout bij bijwerken project');
+      }
     }
   };
 
@@ -197,11 +266,17 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
     setShowDeleteConfirm(true);
   };
 
-  const deleteProject = () => {
+  const deleteProject = async () => {
     if (projectToDelete) {
-      setProjects(projects.filter(p => p.id !== projectToDelete.id));
-      setShowDeleteConfirm(false);
-      setProjectToDelete(null);
+      try {
+        await db.projects.delete(projectToDelete.id);
+        setProjects(projects.filter(p => p.id !== projectToDelete.id));
+        setShowDeleteConfirm(false);
+        setProjectToDelete(null);
+      } catch (e) {
+        console.error('Delete project failed:', e);
+        alert('Fout bij verwijderen project');
+      }
     }
   };
 
