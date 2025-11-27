@@ -237,6 +237,44 @@ export const db = {
       if (error) throw error;
     }
   }
+  ,
+  // Upsells
+  upsells: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('upsells')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (upsell) => {
+      const { data, error } = await supabase
+        .from('upsells')
+        .insert(upsell)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase
+        .from('upsells')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase
+        .from('upsells')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    }
+  }
 };
 
 // File storage helper

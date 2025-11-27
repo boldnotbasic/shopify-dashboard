@@ -173,6 +173,35 @@ CREATE INDEX IF NOT EXISTS faqs_category_idx ON faqs(category);
 CREATE INDEX IF NOT EXISTS faqs_created_at_idx ON faqs(created_at DESC);
 
 -- =============================================
+-- UPSELLS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS upsells (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  bullets TEXT[],
+  category TEXT, -- 'development' | 'post-launch'
+  duration TEXT,
+  impact TEXT,
+  price TEXT,
+  emoji TEXT,
+  color TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE upsells ENABLE ROW LEVEL SECURITY;
+
+-- Public access policies (iedereen kan alles)
+CREATE POLICY "Enable all access for everyone on upsells" ON upsells
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS upsells_category_idx ON upsells(category);
+CREATE INDEX IF NOT EXISTS upsells_created_at_idx ON upsells(created_at DESC);
+
+-- =============================================
 -- UPDATED_AT TRIGGER
 -- =============================================
 -- Automatically update updated_at timestamp
@@ -201,6 +230,9 @@ CREATE TRIGGER update_sales_updated_at BEFORE UPDATE ON sales
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_faqs_updated_at BEFORE UPDATE ON faqs
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_upsells_updated_at BEFORE UPDATE ON upsells
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================
