@@ -23,7 +23,7 @@ const DevModeToggle = () => {
     { id: 'projecten', label: 'Projecten', icon: Folder, category: 'Hoofdmenu' },
     { id: 'themes', label: 'Themes', icon: Palette, category: 'Hoofdmenu' },
     { id: 'apps', label: 'Apps', icon: LayoutGrid, category: 'Hoofdmenu' },
-    { id: 'message-templates', label: 'Message Templates', icon: Send, category: 'Hoofdmenu' },
+    { id: 'faq-clients', label: 'FAQ clients', icon: HelpCircle, category: 'Hoofdmenu' },
     { id: 'users', label: 'Users', icon: UsersRound, category: 'Hoofdmenu' },
     { id: 'logging', label: 'Logging', icon: Clock, category: 'Hoofdmenu' },
     { id: 'settings', label: 'Settings', icon: Wrench, category: 'Hoofdmenu' },

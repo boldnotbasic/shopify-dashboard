@@ -198,6 +198,44 @@ export const db = {
         .eq('id', id);
       if (error) throw error;
     }
+  },
+
+  // FAQs
+  faqs: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('faqs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (faq) => {
+      const { data, error } = await supabase
+        .from('faqs')
+        .insert(faq)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase
+        .from('faqs')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase
+        .from('faqs')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    }
   }
 };
 

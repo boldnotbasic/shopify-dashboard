@@ -106,6 +106,19 @@ CREATE TABLE IF NOT EXISTS sales (
 );
 
 -- =============================================
+-- FAQS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS faqs (
+  id BIGSERIAL PRIMARY KEY,
+  question TEXT NOT NULL,
+  answer TEXT,
+  category TEXT,
+  message_template TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================
 -- Voor dit dashboard willen we dat iedereen alles kan lezen en schrijven
@@ -117,6 +130,7 @@ ALTER TABLE themes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE branding_resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE faqs ENABLE ROW LEVEL SECURITY;
 
 -- Public access policies (iedereen kan alles)
 CREATE POLICY "Enable all access for everyone on apps" ON apps
@@ -132,6 +146,9 @@ CREATE POLICY "Enable all access for everyone on branding_resources" ON branding
   FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Enable all access for everyone on sales" ON sales
+  FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Enable all access for everyone on faqs" ON faqs
   FOR ALL USING (true) WITH CHECK (true);
 
 -- =============================================
@@ -151,6 +168,9 @@ CREATE INDEX IF NOT EXISTS branding_resources_created_at_idx ON branding_resourc
 
 CREATE INDEX IF NOT EXISTS sales_status_idx ON sales(status);
 CREATE INDEX IF NOT EXISTS sales_created_at_idx ON sales(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS faqs_category_idx ON faqs(category);
+CREATE INDEX IF NOT EXISTS faqs_created_at_idx ON faqs(created_at DESC);
 
 -- =============================================
 -- UPDATED_AT TRIGGER
@@ -178,6 +198,9 @@ CREATE TRIGGER update_branding_resources_updated_at BEFORE UPDATE ON branding_re
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_sales_updated_at BEFORE UPDATE ON sales
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_faqs_updated_at BEFORE UPDATE ON faqs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================

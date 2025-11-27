@@ -12,7 +12,7 @@ import ProjectsPage from './components/ProjectsPage';
 import ProjectDetailPage from './components/ProjectDetailPage';
 import ThemesPage from './components/ThemesPage';
 import AppsPage from './components/AppsPage';
-import MessageTemplatesPage from './components/MessageTemplatesPage';
+import FaqClientsPage from './components/FaqClientsPage';
 import UsersPage from './components/UsersPage';
 import LoggingPage from './components/LoggingPage';
 import SettingsPage from './components/SettingsPage';
@@ -86,8 +86,8 @@ function App() {
         return <ThemesPage />;
       case 'apps':
         return <AppsPage />;
-      case 'message-templates':
-        return <MessageTemplatesPage />;
+      case 'faq-clients':
+        return <FaqClientsPage />;
       case 'users':
         return <UsersPage />;
       case 'logging':

@@ -58,7 +58,7 @@ const getMainIcon = (id) => {
     projecten: Folder,        // 📁 Folder icoon
     themes: Palette,          // 🎨 Palette icoon (niet emmertje)
     apps: LayoutGrid,         // ⚏ Grid icoon (2x2 vierkanten)
-    'message-templates': Send,
+    'faq-clients': HelpCircle,
     users: UsersRound,
     logging: Clock,           // 🕐 Klokje icoon
     settings: Wrench,
@@ -193,7 +193,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'projecten', label: 'Projecten' },
     { id: 'themes', label: 'Themes' },
     { id: 'apps', label: 'Apps' },
-    { id: 'message-templates', label: 'Message Templates' },
+    { id: 'faq-clients', label: 'FAQ clients' },
     { id: 'users', label: 'Users' },
     { id: 'logging', label: 'Logging' },
     { id: 'settings', label: 'Settings' },
