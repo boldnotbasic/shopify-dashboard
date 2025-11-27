@@ -189,9 +189,19 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
         if (!rows || rows.length === 0) {
           const payloads = defaultProjects.map(toDbProject);
           const created = await Promise.all(payloads.map(p => db.projects.create(p)));
-          setProjects(created.map(fromDbProject));
+          const arr = created.map(fromDbProject);
+          setProjects(arr);
+          try {
+            localStorage.setItem('shopify-dashboard-projects', JSON.stringify(arr));
+            window.dispatchEvent(new Event('localStorageUpdate'));
+          } catch (_) {}
         } else {
-          setProjects(rows.map(fromDbProject));
+          const arr = rows.map(fromDbProject);
+          setProjects(arr);
+          try {
+            localStorage.setItem('shopify-dashboard-projects', JSON.stringify(arr));
+            window.dispatchEvent(new Event('localStorageUpdate'));
+          } catch (_) {}
         }
       } catch (e) {
         console.error('Load projects failed:', e);
@@ -208,7 +218,12 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
       try {
         const payload = toDbProject(newProject);
         const created = await db.projects.create(payload);
-        setProjects([...projects, fromDbProject(created)]);
+        const next = [...projects, fromDbProject(created)];
+        setProjects(next);
+        try {
+          localStorage.setItem('shopify-dashboard-projects', JSON.stringify(next));
+          window.dispatchEvent(new Event('localStorageUpdate'));
+        } catch (_) {}
         resetForm();
       } catch (e) {
         console.error('Add project failed:', e);
@@ -225,6 +240,10 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
         const updated = fromDbProject(row);
         const updatedProjects = projects.map(p => p.id === editingProject.id ? updated : p);
         setProjects(updatedProjects);
+        try {
+          localStorage.setItem('shopify-dashboard-projects', JSON.stringify(updatedProjects));
+          window.dispatchEvent(new Event('localStorageUpdate'));
+        } catch (_) {}
         resetForm();
       } catch (e) {
         console.error('Update project failed:', e);
@@ -271,7 +290,12 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
     if (projectToDelete) {
       try {
         await db.projects.delete(projectToDelete.id);
-        setProjects(projects.filter(p => p.id !== projectToDelete.id));
+        const next = projects.filter(p => p.id !== projectToDelete.id);
+        setProjects(next);
+        try {
+          localStorage.setItem('shopify-dashboard-projects', JSON.stringify(next));
+          window.dispatchEvent(new Event('localStorageUpdate'));
+        } catch (_) {}
         setShowDeleteConfirm(false);
         setProjectToDelete(null);
       } catch (e) {

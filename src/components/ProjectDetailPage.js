@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { db } from '../utils/supabaseClient';
 import { 
   ArrowLeft, 
   ArrowUp,
@@ -44,46 +45,83 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
   const [themeToAddId, setThemeToAddId] = useState('');
 
   useEffect(() => {
-    // Load project from localStorage
-    const projects = JSON.parse(localStorage.getItem('shopify-dashboard-projects') || '[]');
-    const foundProject = projects.find(p => p.id === parseInt(projectId));
-    // Migrate tickets without keys to generated codes (once)
-    if (foundProject && Array.isArray(foundProject.offerTickets)) {
-      const missing = foundProject.offerTickets.some(t => !t.key);
-      if (missing) {
-        const prefixMap = {
-          'Royal Talens': 'MSYRT',
-          'Dreambaby': 'MSYDB'
-        };
-        const prefix = prefixMap[foundProject.client] || 'MSY';
-        const seqKey = `ticket-seq-${foundProject.id || 'global'}`;
-        let current = parseInt(localStorage.getItem(seqKey) || '280');
-        const nextTickets = foundProject.offerTickets.map(t => {
-          if (t.key) return t;
-          current = isNaN(current) ? 1 : current + 1;
-          const key = `${prefix}-${current}`;
-          return { ...t, key };
-        });
-        const updatedProjects = projects.map(p => p.id === foundProject.id ? { ...p, offerTickets: nextTickets } : p);
-        localStorage.setItem('shopify-dashboard-projects', JSON.stringify(updatedProjects));
-        localStorage.setItem(seqKey, String(current));
-        window.dispatchEvent(new Event('localStorageUpdate'));
-        const refreshed = updatedProjects.find(p => p.id === foundProject.id);
-        setProject(refreshed);
-        setLoading(false);
-        return;
+    const boot = async () => {
+      let projects = [];
+      try {
+        projects = JSON.parse(localStorage.getItem('shopify-dashboard-projects') || '[]');
+      } catch (_) {}
+      let foundProject = projects.find(p => p.id === parseInt(projectId));
+      if (!foundProject) {
+        try {
+          const rows = await db.projects.getAll();
+          const row = rows.find(r => Number(r.id) === parseInt(projectId));
+          if (row) {
+            const tags = row.tags || [];
+            const team = tags.filter(t => String(t).startsWith('team:')).map(t => t.slice(5));
+            const tmsTag = tags.find(t => String(t).startsWith('tms:'));
+            const tmsCode = tmsTag ? String(tmsTag).slice(4) : '';
+            foundProject = {
+              id: row.id,
+              name: row.name,
+              client: row.client,
+              status: row.status,
+              progress: row.progress,
+              deadline: row.deadline || '',
+              team,
+              logo: row.logo || '',
+              icon: row.icon || '',
+              iconColor: row.color || '',
+              tmsCode,
+              description: row.description || '',
+              budget: row.budget || '',
+              shopDomain: row.url || '',
+              seoScore: row.seo_score || 0,
+              created_at: row.created_at,
+              updated_at: row.updated_at
+            };
+            try {
+              const merged = [...projects.filter(p => p.id !== foundProject.id), foundProject];
+              localStorage.setItem('shopify-dashboard-projects', JSON.stringify(merged));
+              window.dispatchEvent(new Event('localStorageUpdate'));
+            } catch (_) {}
+          }
+        } catch (_) {}
       }
-    }
-    setProject(foundProject || null);
-    setLoading(false);
-
-    // Load catalogs
-    try {
-      const apps = JSON.parse(localStorage.getItem('shopify-dashboard-apps') || '[]');
-      const themes = JSON.parse(localStorage.getItem('shopify-dashboard-themes') || '[]');
-      setAppsCatalog(Array.isArray(apps) ? apps : []);
-      setThemesCatalog(Array.isArray(themes) ? themes : []);
-    } catch (_) {}
+      if (foundProject && Array.isArray(foundProject.offerTickets)) {
+        const missing = foundProject.offerTickets.some(t => !t.key);
+        if (missing) {
+          const prefixMap = { 'Royal Talens': 'MSYRT', 'Dreambaby': 'MSYDB' };
+          const prefix = prefixMap[foundProject.client] || 'MSY';
+          const seqKey = `ticket-seq-${foundProject.id || 'global'}`;
+          let current = parseInt(localStorage.getItem(seqKey) || '280');
+          const nextTickets = foundProject.offerTickets.map(t => {
+            if (t.key) return t;
+            current = isNaN(current) ? 1 : current + 1;
+            const key = `${prefix}-${current}`;
+            return { ...t, key };
+          });
+          const updatedProjects = (projects || []).map(p => p.id === foundProject.id ? { ...p, offerTickets: nextTickets } : p);
+          try {
+            localStorage.setItem('shopify-dashboard-projects', JSON.stringify(updatedProjects));
+            localStorage.setItem(seqKey, String(current));
+            window.dispatchEvent(new Event('localStorageUpdate'));
+          } catch (_) {}
+          const refreshed = updatedProjects.find(p => p.id === foundProject.id) || foundProject;
+          setProject(refreshed);
+          setLoading(false);
+          return;
+        }
+      }
+      setProject(foundProject || null);
+      setLoading(false);
+      try {
+        const apps = JSON.parse(localStorage.getItem('shopify-dashboard-apps') || '[]');
+        const themes = JSON.parse(localStorage.getItem('shopify-dashboard-themes') || '[]');
+        setAppsCatalog(Array.isArray(apps) ? apps : []);
+        setThemesCatalog(Array.isArray(themes) ? themes : []);
+      } catch (_) {}
+    };
+    boot();
   }, [projectId]);
 
   useEffect(() => {
