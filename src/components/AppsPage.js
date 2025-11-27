@@ -288,7 +288,9 @@ const AppsPage = () => {
     price: '',
     image: '',
     appLink: '',
-    status: 'Available'
+    status: 'Available',
+    contact: '',
+    usedOn: ''
   });
 
   // Helpers to map between UI keys and DB columns
@@ -297,7 +299,11 @@ const AppsPage = () => {
     description: app.description || null,
     category: app.category || null,
     contact: app.contact || null,
-    used_on: Array.isArray(app.usedOn) ? app.usedOn : (app.used_on || null),
+    used_on: Array.isArray(app.usedOn)
+      ? app.usedOn
+      : (typeof app.usedOn === 'string'
+          ? app.usedOn.split(',').map(s => s.trim()).filter(Boolean)
+          : (app.used_on || [])),
     app_link: app.appLink ?? app.app_link ?? null,
     image: app.image || null,
     rating: app.rating !== undefined && app.rating !== null ? parseFloat(app.rating) : 5.0,
@@ -414,7 +420,9 @@ const AppsPage = () => {
       price: '',
       image: '',
       appLink: '',
-      status: 'Available'
+      status: 'Available',
+      contact: '',
+      usedOn: ''
     });
     setShowAddForm(false);
     setEditingApp(null);
@@ -674,6 +682,26 @@ const AppsPage = () => {
                 onChange={(e) => setNewApp({...newApp, category: e.target.value})}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
                 placeholder="Marketing, Analytics, etc."
+              />
+            </div>
+            <div>
+              <label className="block text-white/70 text-sm mb-2">Contact</label>
+              <input
+                type="text"
+                value={newApp.contact || ''}
+                onChange={(e) => setNewApp({...newApp, contact: e.target.value})}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
+                placeholder="support@voorbeeld.com"
+              />
+            </div>
+            <div>
+              <label className="block text-white/70 text-sm mb-2">Gebruikt op (stores, komma-gescheiden)</label>
+              <input
+                type="text"
+                value={Array.isArray(newApp.usedOn) ? newApp.usedOn.join(', ') : (newApp.usedOn || '')}
+                onChange={(e) => setNewApp({...newApp, usedOn: e.target.value})}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
+                placeholder="VoorbeeldStore, AndereStore"
               />
             </div>
             <div>
