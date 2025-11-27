@@ -685,7 +685,9 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map((project) => (
-          <div key={project.id} className="gradient-card rounded-xl p-6 hover:scale-105 transition-transform relative cursor-pointer">
+          <div key={project.id} className="gradient-card rounded-xl p-6 hover:scale-105 transition-transform relative cursor-pointer overflow-hidden group">
+            {/* Background Gradient */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${project.iconColor || 'from-blue-500 to-purple-600'} opacity-10 group-hover:opacity-20 transition-opacity z-0`}></div>
             <div className="absolute top-4 right-4 flex space-x-2 z-10">
               <button 
                 onClick={(e) => {
@@ -707,7 +709,7 @@ const ProjectsPage = ({ setSelectedProject, setActiveTab }) => {
               </button>
             </div>
             
-            <div onClick={() => setSelectedProject(project.id)}>
+            <div onClick={() => setSelectedProject(project.id)} className="relative z-10">
               <div className="flex items-center mb-4">
                 <div className={`w-12 h-12 rounded-lg overflow-hidden mr-4 bg-gradient-to-br ${project.iconColor || 'bg-gradient-blue-purple'} flex items-center justify-center`}>
                   {project.logo ? (

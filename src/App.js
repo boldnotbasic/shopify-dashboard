@@ -20,6 +20,7 @@ import QuizPage from './components/QuizPage';
 import BrandingPage from './components/BrandingPage';
 import BrandingResourcesPage from './components/BrandingResourcesPage';
 import DevModeToggle from './components/DevModeToggle';
+import { Pencil, Trash2 } from 'lucide-react';
 import { db } from './utils/supabaseClient';
 import './index.css';
 
@@ -120,24 +121,56 @@ const UpsellsPage = () => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((s) => (
-          <div key={s.id} className="gradient-card rounded-xl p-5 hover:bg-white/10 transition-colors cursor-pointer" onClick={() => { setIsEditing(false); onOpen && onOpen(s); }}>
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg ${getColorClasses(s)}`}>{s.emoji}</div>
-                <div>
-                  <h3 className="text-white font-semibold">{s.title}</h3>
-                  <p className="text-white/70 text-sm">{s.description}</p>
-                </div>
-              </div>
-              <button onClick={(e)=>{ e.stopPropagation(); setIsEditing(false); onOpen && onOpen(s); }} className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-white/70">Details</button>
+          <div key={s.id} className="gradient-card rounded-xl p-5 hover:bg-white/10 transition-colors cursor-pointer relative overflow-hidden group" onClick={() => { setIsEditing(false); onOpen && onOpen(s); }}>
+            {/* Background Gradient */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${s.color || (String(s.category).toLowerCase()==='development' ? 'from-pink-500 to-purple-600' : 'from-blue-500 to-cyan-500')} opacity-10 group-hover:opacity-20 transition-opacity z-0`}></div>
+
+            {/* Action Icons */}
+            <div className="absolute top-3 right-3 z-10 flex items-center space-x-2">
+              <button
+                title="Bewerken"
+                onClick={(e)=>{ e.stopPropagation(); setSelected(s); setIsEditing(true); setEditData({ ...s, bulletsText: bulletsToText(s.bullets) }); }}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                title="Verwijderen"
+                onClick={async (e)=>{ 
+                  e.stopPropagation(); 
+                  if (!window.confirm('Deze upsell verwijderen?')) return; 
+                  try { 
+                    await db.upsells.delete(s.id); 
+                    setUpsells((prev)=>prev.filter(u=>u.id!==s.id)); 
+                    if (selected?.id === s.id) setSelected(null);
+                  } catch (_) { alert('Verwijderen mislukt'); }
+                }}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
-            <ul className="text-white/70 text-sm space-y-1 mb-4 list-disc list-inside">
-              {(s.bullets || []).slice(0, 4).map((b, i) => (<li key={i}>{b}</li>))}
-            </ul>
-            <div className="flex items-center justify-between text-xs text-white/70">
-              <span className="bg-white/10 px-2 py-1 rounded">{s.duration}</span>
-              <span className="text-emerald-300">{s.impact}</span>
-              <span className="bg-white/10 px-2 py-1 rounded">{s.price}</span>
+
+            {/* Card Content */}
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg ${getColorClasses(s)}`}>{s.emoji}</div>
+                  <div>
+                    <h3 className="text-white font-semibold">{s.title}</h3>
+                    <p className="text-white/70 text-sm">{s.description}</p>
+                  </div>
+                </div>
+                <button onClick={(e)=>{ e.stopPropagation(); setIsEditing(false); onOpen && onOpen(s); }} className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-white/70">Details</button>
+              </div>
+              <ul className="text-white/70 text-sm space-y-1 mb-4 list-disc list-inside">
+                {(s.bullets || []).slice(0, 4).map((b, i) => (<li key={i}>{b}</li>))}
+              </ul>
+              <div className="flex items-center justify-between text-xs text-white/70">
+                <span className="bg-white/10 px-2 py-1 rounded">{s.duration}</span>
+                <span className="text-emerald-300">{s.impact}</span>
+                <span className="bg-white/10 px-2 py-1 rounded">{s.price}</span>
+              </div>
             </div>
           </div>
         ))}
