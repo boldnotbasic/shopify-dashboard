@@ -326,4 +326,90 @@ export const subscribe = {
   }
 };
 
+// Auth helpers
+export const auth = {
+  // Sign in with email/password
+  signIn: async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    return { data, error };
+  },
+
+  // Sign up new user
+  signUp: async (email, password, fullName) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName
+        }
+      }
+    });
+    return { data, error };
+  },
+
+  // Sign out
+  signOut: async () => {
+    const { error } = await supabase.auth.signOut();
+    return { error };
+  },
+
+  // Get current session
+  getSession: async () => {
+    const { data, error } = await supabase.auth.getSession();
+    return { data, error };
+  },
+
+  // Get current user
+  getUser: async () => {
+    const { data, error } = await supabase.auth.getUser();
+    return { data, error };
+  },
+
+  // Listen to auth state changes
+  onAuthStateChange: (callback) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+    return subscription;
+  }
+};
+
+// User profiles
+export const profiles = {
+  // Get all profiles
+  getAll: async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get profile by ID
+  getById: async (id) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Update profile
+  update: async (id, updates) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+};
+
 export default supabase;

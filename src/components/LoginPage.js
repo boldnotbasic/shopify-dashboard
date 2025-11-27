@@ -1,29 +1,69 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { supabase } from '../utils/supabaseClient';
 
 const LoginPage = ({ setIsLoggedIn }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // Simulate loading delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
+      });
 
-    if (username.trim().toLowerCase() === 'gijs.vandromme' && password === 'DashDashShop876!') {
-      localStorage.setItem('shopify-dashboard-logged-in', 'true');
-      setIsLoggedIn(true);
-    } else {
-      setError('Ongeldige gebruikersnaam of wachtwoord');
+      if (error) throw error;
+
+      if (data?.session) {
+        localStorage.setItem('shopify-dashboard-logged-in', 'true');
+        setIsLoggedIn(true);
+      }
+    } catch (err) {
+      setError(err.message || 'Ongeldige email of wachtwoord');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
+  };
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password,
+        options: {
+          data: {
+            full_name: fullName.trim()
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.session) {
+        localStorage.setItem('shopify-dashboard-logged-in', 'true');
+        setIsLoggedIn(true);
+      } else {
+        setError('Account aangemaakt! Check je email voor verificatie.');
+      }
+    } catch (err) {
+      setError(err.message || 'Er ging iets mis bij het aanmaken van je account');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
 
@@ -44,25 +84,47 @@ const LoginPage = ({ setIsLoggedIn }) => {
           </div>
         </div>
 
-        {/* Login Form */}
+        {/* Login/SignUp Form */}
         <div className="gradient-card rounded-xl p-8">
           <div className="text-center mb-6">
-            <h2 className="text-white text-xl font-semibold mb-2">Welkom terug</h2>
-            <p className="text-white/70 text-sm">Log in om toegang te krijgen tot het dashboard</p>
+            <h2 className="text-white text-xl font-semibold mb-2">
+              {isSignUp ? 'Account aanmaken' : 'Welkom terug'}
+            </h2>
+            <p className="text-white/70 text-sm">
+              {isSignUp ? 'Maak een account aan om aan de slag te gaan' : 'Log in om toegang te krijgen tot het dashboard'}
+            </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            {/* Username Field */}
+          <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-6">
+            {/* Full Name Field (alleen bij sign up) */}
+            {isSignUp && (
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Volledige naam</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/60 focus:outline-none focus:border-blue-400 transition-colors"
+                    placeholder="Voer je volledige naam in"
+                    required={isSignUp}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Email Field */}
             <div>
-              <label className="block text-white/70 text-sm mb-2">Gebruikersnaam</label>
+              <label className="block text-white/70 text-sm mb-2">Email</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
                 <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/60 focus:outline-none focus:border-blue-400 transition-colors"
-                  placeholder="Voer je gebruikersnaam in"
+                  placeholder="Voer je email in"
                   required
                 />
               </div>
@@ -98,7 +160,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
               </div>
             )}
 
-            {/* Login Button */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -107,12 +169,26 @@ const LoginPage = ({ setIsLoggedIn }) => {
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Inloggen...</span>
+                  <span>{isSignUp ? 'Account aanmaken...' : 'Inloggen...'}</span>
                 </>
               ) : (
-                <span>Inloggen</span>
+                <span>{isSignUp ? 'Account aanmaken' : 'Inloggen'}</span>
               )}
             </button>
+
+            {/* Toggle between login and signup */}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError('');
+                }}
+                className="text-white/70 hover:text-white text-sm transition-colors"
+              >
+                {isSignUp ? 'Heb je al een account? Log in' : 'Nog geen account? Maak er één aan'}
+              </button>
+            </div>
           </form>
           
         </div>

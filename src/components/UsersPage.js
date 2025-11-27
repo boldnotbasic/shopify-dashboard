@@ -1,83 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, X, Shield, Eye, PenTool, Crown, Mail, Calendar, Search } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, X, Shield, Eye, PenTool, Crown, Mail, Calendar, Search, RefreshCw } from 'lucide-react';
+import { profiles, auth } from '../utils/supabaseClient';
 
 const UsersPage = () => {
-  const defaultUsers = [
-    {
-      id: 1,
-      name: 'Gijs Meteor',
-      email: 'gijs@meteor.com',
-      role: 'admin',
-      avatar: 'https://via.placeholder.com/80x80/4facfe/ffffff?text=GM',
-      status: 'active',
-      lastLogin: '2024-01-15T10:30:00Z',
-      joinDate: '2023-06-01T00:00:00Z',
-      projects: ['Royal Talens', 'Dremababy', 'Meteor Merch'],
-      department: 'Development'
-    },
-    {
-      id: 2,
-      name: 'Sarah Johnson',
-      email: 'sarah@meteor.com',
-      role: 'editor',
-      avatar: 'https://via.placeholder.com/80x80/fa709a/ffffff?text=SJ',
-      status: 'active',
-      lastLogin: '2024-01-14T16:45:00Z',
-      joinDate: '2023-08-15T00:00:00Z',
-      projects: ['Royal Talens', 'Theme Development'],
-      department: 'Design'
-    },
-    {
-      id: 3,
-      name: 'Mike Chen',
-      email: 'mike@meteor.com',
-      role: 'viewer',
-      avatar: 'https://via.placeholder.com/80x80/43e97b/ffffff?text=MC',
-      status: 'active',
-      lastLogin: '2024-01-13T09:15:00Z',
-      joinDate: '2023-11-20T00:00:00Z',
-      projects: ['Dremababy'],
-      department: 'Marketing'
-    },
-    {
-      id: 4,
-      name: 'Emma Wilson',
-      email: 'emma@meteor.com',
-      role: 'editor',
-      avatar: 'https://via.placeholder.com/80x80/667eea/ffffff?text=EW',
-      status: 'inactive',
-      lastLogin: '2023-12-20T14:20:00Z',
-      joinDate: '2023-05-10T00:00:00Z',
-      projects: ['Theme Development'],
-      department: 'Development'
-    }
-  ];
-
-  const [users, setUsers] = useState(() => {
-    const savedUsers = localStorage.getItem('shopify-dashboard-users');
-    return savedUsers ? JSON.parse(savedUsers) : defaultUsers;
-  });
-
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [error, setError] = useState('');
   const [newUser, setNewUser] = useState({
-    name: '',
+    full_name: '',
     email: '',
-    role: 'viewer',
-    avatar: '',
-    status: 'active',
-    department: '',
-    projects: []
+    role: 'user',
+    avatar_url: ''
   });
 
-  // Save users to localStorage whenever users change
+  // Load users from Supabase
+  const loadUsers = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await profiles.getAll();
+      setUsers(data);
+    } catch (err) {
+      setError('Fout bij laden van gebruikers: ' + err.message);
+      console.error('Error loading users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('shopify-dashboard-users', JSON.stringify(users));
-  }, [users]);
+    loadUsers();
+  }, []);
 
   const getRoleIcon = (role) => {
     switch (role) {
@@ -125,58 +84,48 @@ const UsersPage = () => {
     }
   };
 
-  const addUser = () => {
-    if (newUser.name && newUser.email) {
-      const user = {
-        ...newUser,
-        id: Date.now(),
-        lastLogin: new Date().toISOString(),
-        joinDate: new Date().toISOString(),
-        projects: newUser.projects || []
-      };
-      setUsers([...users, user]);
+  const updateUser = async () => {
+    if (!newUser.full_name || !editingUser) return;
+    
+    setLoading(true);
+    setError('');
+    try {
+      await profiles.update(editingUser.id, {
+        full_name: newUser.full_name,
+        role: newUser.role,
+        avatar_url: newUser.avatar_url
+      });
+      await loadUsers();
       resetForm();
-    }
-  };
-
-  const updateUser = () => {
-    if (newUser.name && newUser.email) {
-      const updatedUsers = users.map(u => 
-        u.id === editingUser.id 
-          ? { ...newUser, id: editingUser.id, joinDate: editingUser.joinDate, lastLogin: editingUser.lastLogin }
-          : u
-      );
-      setUsers(updatedUsers);
-      resetForm();
+    } catch (err) {
+      setError('Fout bij bijwerken: ' + err.message);
+      console.error('Error updating user:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const startEdit = (user) => {
     setEditingUser(user);
     setNewUser({
-      name: user.name,
+      full_name: user.full_name || '',
       email: user.email,
-      role: user.role,
-      avatar: user.avatar || '',
-      status: user.status,
-      department: user.department || '',
-      projects: user.projects || []
+      role: user.role || 'user',
+      avatar_url: user.avatar_url || ''
     });
     setShowAddForm(true);
   };
 
   const resetForm = () => {
     setNewUser({
-      name: '',
+      full_name: '',
       email: '',
-      role: 'viewer',
-      avatar: '',
-      status: 'active',
-      department: '',
-      projects: []
+      role: 'user',
+      avatar_url: ''
     });
     setShowAddForm(false);
     setEditingUser(null);
+    setError('');
   };
 
   const confirmDelete = (user) => {
@@ -185,11 +134,11 @@ const UsersPage = () => {
   };
 
   const deleteUser = () => {
-    if (userToDelete) {
-      setUsers(users.filter(u => u.id !== userToDelete.id));
-      setShowDeleteConfirm(false);
-      setUserToDelete(null);
-    }
+    // Note: User deletion should be handled with care via Supabase Auth admin API
+    // For now, we'll just show a message
+    setError('User deletion moet via Supabase Auth Admin worden gedaan voor veiligheid.');
+    setShowDeleteConfirm(false);
+    setUserToDelete(null);
   };
 
   const cancelDelete = () => {
@@ -198,18 +147,17 @@ const UsersPage = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.department.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     return matchesSearch && matchesRole;
   });
 
   const roleStats = {
     admin: users.filter(u => u.role === 'admin').length,
-    editor: users.filter(u => u.role === 'editor').length,
+    user: users.filter(u => u.role === 'user').length,
     viewer: users.filter(u => u.role === 'viewer').length,
-    active: users.filter(u => u.status === 'active').length
+    total: users.length
   };
 
   return (
@@ -218,16 +166,24 @@ const UsersPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Gebruikersbeheer</h1>
-          <p className="text-white/70">Beheer gebruikers, rollen en toegangsrechten</p>
+          <p className="text-white/70">Beheer gebruikers, rollen en toegangsrechten via Supabase Auth</p>
         </div>
         <button 
-          onClick={() => setShowAddForm(true)}
-          className="btn-primary px-6 py-3 rounded-lg text-white font-medium flex items-center space-x-2"
+          onClick={loadUsers}
+          disabled={loading}
+          className="btn-primary px-6 py-3 rounded-lg text-white font-medium flex items-center space-x-2 disabled:opacity-50"
         >
-          <Plus className="w-5 h-5" />
-          <span>Nieuwe Gebruiker</span>
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          <span>Vernieuwen</span>
         </button>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
+          <p className="text-red-300">{error}</p>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -245,11 +201,11 @@ const UsersPage = () => {
         <div className="gradient-card px-6 py-4 rounded-xl">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-500/20 rounded-lg">
-              <PenTool className="w-6 h-6 text-blue-300" />
+              <Shield className="w-6 h-6 text-blue-300" />
             </div>
             <div>
-              <p className="text-white/70 text-sm">Editors</p>
-              <p className="text-white font-bold text-2xl">{roleStats.editor}</p>
+              <p className="text-white/70 text-sm">Users</p>
+              <p className="text-white font-bold text-2xl">{roleStats.user}</p>
             </div>
           </div>
         </div>
@@ -270,8 +226,8 @@ const UsersPage = () => {
               <Users className="w-6 h-6 text-emerald-300" />
             </div>
             <div>
-              <p className="text-white/70 text-sm">Actief</p>
-              <p className="text-white font-bold text-2xl">{roleStats.active}</p>
+              <p className="text-white/70 text-sm">Totaal</p>
+              <p className="text-white font-bold text-2xl">{roleStats.total}</p>
             </div>
           </div>
         </div>
@@ -296,104 +252,78 @@ const UsersPage = () => {
         >
           <option value="all" className="bg-gray-800">Alle rollen</option>
           <option value="admin" className="bg-gray-800">Admin</option>
-          <option value="editor" className="bg-gray-800">Editor</option>
+          <option value="user" className="bg-gray-800">User</option>
           <option value="viewer" className="bg-gray-800">Viewer</option>
         </select>
       </div>
 
-      {/* Users Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredUsers.map((user) => {
-          const RoleIcon = getRoleIcon(user.role);
-          return (
-            <div key={user.id} className="gradient-card rounded-xl p-6 hover:scale-105 transition-transform relative">
-              <div className="absolute top-4 right-4 flex space-x-2 z-10">
-                <button 
-                  onClick={() => startEdit(user)}
-                  className="bg-black/50 p-2 rounded-full text-white/80 hover:text-white hover:bg-black/70 transition-colors"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => confirmDelete(user)}
-                  className="bg-black/50 p-2 rounded-full text-red-400 hover:text-red-300 hover:bg-black/70 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-              
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-blue-purple flex items-center justify-center">
-                  {user.avatar ? (
-                    <img 
-                      src={user.avatar} 
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <span className="text-white font-bold text-lg">
-                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-white font-semibold text-lg">{user.name}</h3>
-                  <p className="text-white/70 text-sm">{user.email}</p>
-                  <p className="text-white/60 text-xs">{user.department}</p>
-                </div>
-              </div>
+      {/* Loading State */}
+      {loading && users.length === 0 && (
+        <div className="text-center py-12">
+          <div className="inline-block w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          <p className="text-white/70 mt-4">Gebruikers laden...</p>
+        </div>
+      )}
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60 text-sm">Rol:</span>
-                  <div className={`px-3 py-1 rounded-full border text-xs font-medium flex items-center space-x-1 ${getRoleColor(user.role)}`}>
-                    <RoleIcon className="w-3 h-3" />
-                    <span className="capitalize">{user.role}</span>
-                  </div>
+      {/* Users Grid */}
+      {!loading || users.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredUsers.map((user) => {
+            const RoleIcon = getRoleIcon(user.role);
+            const userName = user.full_name || user.email.split('@')[0];
+            return (
+              <div key={user.id} className="gradient-card rounded-xl p-6 hover:scale-105 transition-transform relative">
+                <div className="absolute top-4 right-4 flex space-x-2 z-10">
+                  <button 
+                    onClick={() => startEdit(user)}
+                    className="bg-black/50 p-2 rounded-full text-white/80 hover:text-white hover:bg-black/70 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60 text-sm">Status:</span>
-                  <div className={`px-3 py-1 rounded-full border text-xs font-medium ${getStatusColor(user.status)}`}>
-                    <span className="capitalize">{user.status}</span>
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-blue-purple flex items-center justify-center">
+                    {user.avatar_url ? (
+                      <img 
+                        src={user.avatar_url} 
+                        alt={userName}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <span className="text-white font-bold text-lg">
+                        {userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold text-lg">{userName}</h3>
+                    <p className="text-white/70 text-sm">{user.email}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60 text-sm">Laatste login:</span>
-                  <span className="text-white text-sm">{formatLastLogin(user.lastLogin)}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60 text-sm">Lid sinds:</span>
-                  <span className="text-white text-sm">{formatDate(user.joinDate)}</span>
-                </div>
-
-                {user.projects && user.projects.length > 0 && (
-                  <div>
-                    <span className="text-white/60 text-sm">Projecten:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {user.projects.slice(0, 2).map((project, index) => (
-                        <span key={index} className="text-white/60 text-xs bg-white/10 px-2 py-1 rounded">
-                          {project}
-                        </span>
-                      ))}
-                      {user.projects.length > 2 && (
-                        <span className="text-white/60 text-xs bg-white/10 px-2 py-1 rounded">
-                          +{user.projects.length - 2}
-                        </span>
-                      )}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60 text-sm">Rol:</span>
+                    <div className={`px-3 py-1 rounded-full border text-xs font-medium flex items-center space-x-1 ${getRoleColor(user.role)}`}>
+                      <RoleIcon className="w-3 h-3" />
+                      <span className="capitalize">{user.role}</span>
                     </div>
                   </div>
-                )}
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60 text-sm">Aangemaakt:</span>
+                    <span className="text-white text-sm">{formatDate(user.created_at)}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       {/* Add/Edit User Form */}
       {showAddForm && (
@@ -416,21 +346,22 @@ const UsersPage = () => {
                 <label className="block text-white/70 text-sm mb-2">Naam *</label>
                 <input
                   type="text"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                  value={newUser.full_name}
+                  onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
                   placeholder="Volledige naam"
                 />
               </div>
               <div>
-                <label className="block text-white/70 text-sm mb-2">Email *</label>
+                <label className="block text-white/70 text-sm mb-2">Email</label>
                 <input
                   type="email"
                   value={newUser.email}
-                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
+                  disabled
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white/50 cursor-not-allowed"
                   placeholder="email@meteor.com"
                 />
+                <p className="text-white/50 text-xs mt-1">Email kan niet worden gewijzigd</p>
               </div>
               <div>
                 <label className="block text-white/70 text-sm mb-2">Rol</label>
@@ -440,94 +371,39 @@ const UsersPage = () => {
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
                 >
                   <option value="viewer" className="bg-gray-800">Viewer</option>
-                  <option value="editor" className="bg-gray-800">Editor</option>
+                  <option value="user" className="bg-gray-800">User</option>
                   <option value="admin" className="bg-gray-800">Admin</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-white/70 text-sm mb-2">Status</label>
-                <select
-                  value={newUser.status}
-                  onChange={(e) => setNewUser({...newUser, status: e.target.value})}
-                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
-                >
-                  <option value="active" className="bg-gray-800">Actief</option>
-                  <option value="inactive" className="bg-gray-800">Inactief</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-white/70 text-sm mb-2">Afdeling</label>
-                <input
-                  type="text"
-                  value={newUser.department}
-                  onChange={(e) => setNewUser({...newUser, department: e.target.value})}
-                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
-                  placeholder="Development, Design, Marketing..."
-                />
               </div>
               <div>
                 <label className="block text-white/70 text-sm mb-2">Avatar URL</label>
                 <input
                   type="url"
-                  value={newUser.avatar}
-                  onChange={(e) => setNewUser({...newUser, avatar: e.target.value})}
+                  value={newUser.avatar_url}
+                  onChange={(e) => setNewUser({...newUser, avatar_url: e.target.value})}
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400"
                   placeholder="https://example.com/avatar.jpg"
                 />
               </div>
             </div>
             
+            {error && (
+              <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3 mt-4">
+                <p className="text-red-300 text-sm">{error}</p>
+              </div>
+            )}
+            
             <div className="flex space-x-4 mt-6">
               <button 
-                onClick={editingUser ? updateUser : addUser}
-                className="btn-primary px-6 py-2 rounded-lg text-white font-medium"
+                onClick={updateUser}
+                disabled={loading}
+                className="btn-primary px-6 py-2 rounded-lg text-white font-medium disabled:opacity-50"
               >
-                {editingUser ? 'Gebruiker Bijwerken' : 'Gebruiker Toevoegen'}
+                {loading ? 'Bezig...' : 'Gebruiker Bijwerken'}
               </button>
               <button 
                 onClick={resetForm}
                 className="glass-effect px-6 py-2 rounded-lg text-white font-medium"
-              >
-                Annuleren
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="gradient-card rounded-xl p-6 w-[500px] max-w-[90vw]">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-white text-xl font-semibold">Gebruiker Verwijderen</h2>
-              <button 
-                onClick={cancelDelete}
-                className="text-white/70 hover:text-white"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-white/70 mb-4">
-                Ben je zeker dat je gebruiker <span className="text-white font-semibold">"{userToDelete?.name}"</span> wil verwijderen?
-              </p>
-              <p className="text-red-300 text-sm">
-                Deze actie kan niet ongedaan gemaakt worden.
-              </p>
-            </div>
-            
-            <div className="flex space-x-4">
-              <button 
-                onClick={deleteUser}
-                className="bg-red-500 hover:bg-red-600 px-6 py-2 rounded-lg text-white font-medium flex-1 transition-colors"
-              >
-                Ja, Verwijderen
-              </button>
-              <button 
-                onClick={cancelDelete}
-                className="glass-effect px-6 py-2 rounded-lg text-white font-medium flex-1"
               >
                 Annuleren
               </button>

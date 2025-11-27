@@ -2,6 +2,37 @@
 -- Voer dit script uit in de Supabase SQL Editor
 
 -- =============================================
+-- USER PROFILES TABLE
+-- =============================================
+-- Supabase Auth heeft een ingebouwde auth.users tabel
+-- We maken een publieke profiles tabel die linked is aan auth.users
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  avatar_url TEXT,
+  role TEXT DEFAULT 'user', -- 'admin', 'user', 'viewer'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Automatically create profile when user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger the function on user creation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =============================================
 -- APPS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS apps (
@@ -121,10 +152,10 @@ CREATE TABLE IF NOT EXISTS faqs (
 -- =============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================
--- Voor dit dashboard willen we dat iedereen alles kan lezen en schrijven
--- zonder authenticatie (publiek toegankelijk voor team)
+-- SECURE: Alleen authenticated users krijgen toegang
 
--- Enable RLS
+-- Enable RLS on all tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE apps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE themes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
@@ -132,24 +163,90 @@ ALTER TABLE branding_resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE faqs ENABLE ROW LEVEL SECURITY;
 
--- Public access policies (iedereen kan alles)
-CREATE POLICY "Enable all access for everyone on apps" ON apps
-  FOR ALL USING (true) WITH CHECK (true);
+-- Profiles: Users can read all profiles, update only their own
+CREATE POLICY "Users can view all profiles" ON profiles
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Enable all access for everyone on themes" ON themes
-  FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Enable all access for everyone on projects" ON projects
-  FOR ALL USING (true) WITH CHECK (true);
+-- Apps: Authenticated users can do everything
+CREATE POLICY "Authenticated users can view apps" ON apps
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Enable all access for everyone on branding_resources" ON branding_resources
-  FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert apps" ON apps
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "Enable all access for everyone on sales" ON sales
-  FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated users can update apps" ON apps
+  FOR UPDATE USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Enable all access for everyone on faqs" ON faqs
-  FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated users can delete apps" ON apps
+  FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Themes: Authenticated users can do everything
+CREATE POLICY "Authenticated users can view themes" ON themes
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert themes" ON themes
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update themes" ON themes
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete themes" ON themes
+  FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Projects: Authenticated users can do everything
+CREATE POLICY "Authenticated users can view projects" ON projects
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert projects" ON projects
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update projects" ON projects
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete projects" ON projects
+  FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Branding Resources: Authenticated users can do everything
+CREATE POLICY "Authenticated users can view branding_resources" ON branding_resources
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert branding_resources" ON branding_resources
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update branding_resources" ON branding_resources
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete branding_resources" ON branding_resources
+  FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Sales: Authenticated users can do everything
+CREATE POLICY "Authenticated users can view sales" ON sales
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert sales" ON sales
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update sales" ON sales
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete sales" ON sales
+  FOR DELETE USING (auth.role() = 'authenticated');
+
+-- FAQs: Authenticated users can do everything
+CREATE POLICY "Authenticated users can view faqs" ON faqs
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert faqs" ON faqs
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update faqs" ON faqs
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete faqs" ON faqs
+  FOR DELETE USING (auth.role() = 'authenticated');
 
 -- =============================================
 -- INDEXES voor betere performance
@@ -193,9 +290,18 @@ CREATE TABLE IF NOT EXISTS upsells (
 -- Enable RLS
 ALTER TABLE upsells ENABLE ROW LEVEL SECURITY;
 
--- Public access policies (iedereen kan alles)
-CREATE POLICY "Enable all access for everyone on upsells" ON upsells
-  FOR ALL USING (true) WITH CHECK (true);
+-- Upsells: Authenticated users can do everything
+CREATE POLICY "Authenticated users can view upsells" ON upsells
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert upsells" ON upsells
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update upsells" ON upsells
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete upsells" ON upsells
+  FOR DELETE USING (auth.role() = 'authenticated');
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS upsells_category_idx ON upsells(category);
