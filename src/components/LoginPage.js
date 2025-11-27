@@ -16,7 +16,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
     // Simulate loading delay
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    if (username === 'Gijs' && password === '123') {
+    if (username.trim().toLowerCase() === 'gijs.vandromme' && password === 'DashDashShop876!') {
       localStorage.setItem('shopify-dashboard-logged-in', 'true');
       setIsLoggedIn(true);
     } else {
@@ -26,10 +26,6 @@ const LoginPage = ({ setIsLoggedIn }) => {
     setIsLoading(false);
   };
 
-  const handleTestingLogin = () => {
-    localStorage.setItem('shopify-dashboard-logged-in', 'true');
-    setIsLoggedIn(true);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
@@ -118,32 +114,12 @@ const LoginPage = ({ setIsLoggedIn }) => {
               )}
             </button>
           </form>
-
-          {/* Testing Button */}
-          <div className="mt-4">
-            <button
-              onClick={handleTestingLogin}
-              className="w-full glass-effect py-3 rounded-lg text-white font-medium hover:bg-white/10 transition-colors"
-            >
-              Meteen doorgaan (testing)
-            </button>
-          </div>
-
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
-            <p className="text-white/60 text-xs mb-2">Demo inloggegevens:</p>
-            <div className="space-y-1">
-              <p className="text-white/80 text-sm">Gebruiker: <span className="font-mono">Gijs</span></p>
-              <p className="text-white/80 text-sm">Wachtwoord: <span className="font-mono">123</span></p>
-            </div>
-          </div>
+          
         </div>
 
         {/* Footer */}
         <div className="text-center mt-6">
-          <p className="text-white/50 text-xs">
-            © 2024 METEOR. Alle rechten voorbehouden.
-          </p>
+          <p className="text-white/50 text-xs">© 2025 METEOR DIGITAL NV</p>
         </div>
       </div>
     </div>
