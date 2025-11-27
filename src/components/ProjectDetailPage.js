@@ -794,63 +794,33 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
               <ArrowUp className="w-5 h-5 mr-2" /> Upsell topics
             </h3>
           </div>
-          <div className="space-y-2">
-            {[
-              { title: 'SEA/Google Pakket', desc: 'Google merchant center, Performance rapporting, Google Ads, Google Analytics, A/B testing', daysAfterLive: 30 },
-              { title: 'SEO Pakket', desc: 'Alt text images, Collection description, Redirects, Sitemaps, Google search insights, Meta-descriptions, Dinamic records', daysAfterLive: 14 },
-              { title: 'Blogs', desc: 'SEO Blogs copyrighten, Keyword search, Related products section, Tags', daysAfterLive: 21 },
-              { title: 'Newsletters', desc: 'Klaviyo flows, Segmenten, Newsletter templating, A/B testing, Loyalty Program', daysAfterLive: 45 },
-              { title: 'Automations', desc: 'Shopify flows, MRN, Rules', daysAfterLive: 60 },
-              { title: 'Socials', desc: 'Canva templates Socials, Social media campagnes', daysAfterLive: 7 },
-              { title: 'Graphic design', desc: 'Banners/slides, Flyers, Logo/huisstijlgids', daysAfterLive: 0 },
-              { title: 'Custom webdesign', desc: 'Custom sections, UX/UX audit, Components design', daysAfterLive: 90 },
-              { title: 'Custom Apps', desc: 'DEV', daysAfterLive: 120 },
-              { title: 'Audit improvements', desc: 'Onderzoek naar geschiedenis, Wat werkt er niet, Hoe kan de shop nog verbeteren/converteren?, Zijn er "frustraties"?, Data optimalisatie', daysAfterLive: 180 },
-              { title: 'Reviews', desc: 'Judge.me, Beoordeel alles op PDP/PLP, Store Reviews stars op Homepage', daysAfterLive: 14 },
-              { title: 'Loyalty', desc: 'Smile.io, Rewarding system, Discounts opzetten', daysAfterLive: 60 },
-              { title: 'Internationale groei', desc: 'Uitbreiden qua markten, Translations, Markets/Duties features', daysAfterLive: 365 },
-              { title: 'Subscriptions', desc: 'Maandelijkse bestellingen', daysAfterLive: 90 },
-              { title: 'Shipping/Billing', desc: 'Sendcloud, Sufio', daysAfterLive: 7 },
-            ].map((it, i) => {
-              const goLiveDate = project.goLiveDate ? new Date(project.goLiveDate) : null;
-              const today = new Date();
-              const daysUntilRecommend = goLiveDate ? 
-                Math.max(0, it.daysAfterLive - Math.floor((today - goLiveDate) / (1000 * 60 * 60 * 24))) : 
-                it.daysAfterLive;
-              const canRecommend = goLiveDate && daysUntilRecommend === 0;
-              
-              return (
-              <div key={`${it.title}-${i}`} className={`flex items-center justify-between rounded-lg px-3 py-2 ${canRecommend ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5'}`}>
-                <div className="flex items-center space-x-3">
-                  {canRecommend ? (
-                    <span className="inline-flex items-center rounded bg-green-500/30 text-green-300 text-xs font-bold h-6 px-2">
-                      READY
+          {(Array.isArray(project.upsellTopics) && project.upsellTopics.length > 0) ? (
+            <div className="space-y-2">
+              {project.upsellTopics.map((it, i) => (
+                <div key={`${it.title}-${i}`} className="flex items-center justify-between rounded-lg px-3 py-2 bg-white/5">
+                  <div className="flex items-center space-x-3">
+                    <span className="inline-flex items-center rounded bg-purple-500/30 text-purple-200 text-xs font-bold h-6 px-2">
+                      TOPIC
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded bg-orange-500/30 text-orange-300 text-xs font-bold h-6 px-2">
-                      {daysUntilRecommend}d
-                    </span>
-                  )}
-                  <div>
-                    <div className="text-white text-sm font-medium">{it.title}</div>
-                    <div className="text-white/60 text-xs">{it.desc}</div>
-                    {!goLiveDate && (
-                      <div className="text-yellow-400 text-xs mt-1">⚠️ Go-live datum niet ingesteld</div>
-                    )}
+                    <div>
+                      <div className="text-white text-sm font-medium">{it.title}</div>
+                      <div className="text-white/60 text-xs">{it.description || it.desc || ''}</div>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => addUpsellToInvoice({ title: it.title, desc: (it.description || it.desc || '') })}
+                    disabled={(project.upsellInvoice || []).some(x => x.title === it.title)}
+                    className={`text-xs px-3 py-1 rounded text-white ${((project.upsellInvoice || []).some(x => x.title === it.title)) ? 'bg-white/10 opacity-60 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20'}`}
+                    title={(project.upsellInvoice || []).some(x => x.title === it.title) ? 'Reeds toegevoegd' : 'Add to invoice'}
+                  >
+                    {((project.upsellInvoice || []).some(x => x.title === it.title)) ? 'Toegevoegd' : 'Add to invoice'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => addUpsellToInvoice(it)}
-                  disabled={(project.upsellInvoice || []).some(x => x.title === it.title)}
-                  className={`text-xs px-3 py-1 rounded text-white ${((project.upsellInvoice || []).some(x => x.title === it.title)) ? 'bg-white/10 opacity-60 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20'}`}
-                  title={(project.upsellInvoice || []).some(x => x.title === it.title) ? 'Reeds toegevoegd' : 'Add to invoice'}
-                >
-                  {((project.upsellInvoice || []).some(x => x.title === it.title)) ? 'Toegevoegd' : 'Add to invoice'}
-                </button>
-              </div>
-            );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-white/60 text-sm">Nog geen upsell topics voor dit project.</div>
+          )}
         </div>
 
         {/* Upsell invoice (right column, follows Jira tickets) */}

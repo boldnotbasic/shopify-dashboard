@@ -37,11 +37,19 @@ const UpsellsPage = () => {
     impact: '',
     price: '',
     emoji: '✨',
-    color: 'from-pink-500 to-purple-600'
+    color: 'from-pink-500 to-purple-600',
+    mailTemplate: ''
   });
   const [selected, setSelected] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [showMailModal, setShowMailModal] = useState(false);
+  const [mailUpsell, setMailUpsell] = useState(null);
+  const [mailText, setMailText] = useState('');
+  const [showAddToProjectModal, setShowAddToProjectModal] = useState(false);
+  const [projectsList, setProjectsList] = useState([]);
+  const [projectToAddId, setProjectToAddId] = useState('');
+  const [upsellToAdd, setUpsellToAdd] = useState(null);
 
   const gradients = [
     'from-pink-500 to-purple-600',
@@ -65,40 +73,27 @@ const UpsellsPage = () => {
   });
   const bulletsToText = (arr) => (Array.isArray(arr) ? arr.join('\n') : '');
 
+  // Mail template helpers (localStorage)
+  const getMailTemplatesMap = () => {
+    try { return JSON.parse(localStorage.getItem('shopify-dashboard-upsell-mail-templates') || '{}'); } catch { return {}; }
+  };
+  const getMailTemplate = (id) => {
+    const map = getMailTemplatesMap();
+    return id != null ? (map[String(id)] || '') : '';
+  };
+  const setMailTemplate = (id, template) => {
+    if (id == null) return;
+    const map = getMailTemplatesMap();
+    map[String(id)] = template || '';
+    try { localStorage.setItem('shopify-dashboard-upsell-mail-templates', JSON.stringify(map)); } catch {}
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
         const rows = await db.upsells.getAll();
-        // Volledige default set (Development + Na Go Live)
-        const defaults = [
-          { title: 'Blogs & Content', description: 'SEO geoptimaliseerde blogs voor betere vindbaarheid', bullets: ['5 SEO Blogs copywriten', 'Keyword search', 'Related products sectie', 'Tags'], category: 'development', duration: '2-4 weken', impact: '+20% organisch verkeer', price: '€500 - €1.500', emoji: '📝', color: 'from-pink-500 to-purple-600' },
-          { title: '(AI) Pictures/Text', description: 'Professionele product content met AI ondersteuning', bullets: ['Generatieve AI pictures', 'Generating Text/Content', 'Upscale resolutions', 'Optimize pictures'], category: 'development', duration: '1-2 weken', impact: '+15% conversie', price: '€750 - €2.000', emoji: '🤖', color: 'from-indigo-500 to-violet-600' },
-          { title: 'Socials', description: 'Social media aanwezigheid en campagnes', bullets: ['Canva templates Socials', 'Social media campagnes', 'Assistentie opzet socials'], category: 'post-launch', duration: '1-2 weken', impact: '+30% social verkeer', price: '€600 - €1.800', emoji: '📣', color: 'from-blue-500 to-cyan-500' },
-          { title: 'Graphic Design', description: 'Professioneel grafisch ontwerp voor je merk', bullets: ['Naamkaartjes', 'Flyers', 'Logo/huisstijlgids'], category: 'post-launch', duration: '1-3 weken', impact: 'Brand awareness +50%', price: '€500 - €2.000', emoji: '🎨', color: 'from-amber-500 to-yellow-400' },
-          { title: 'Custom Apps', description: 'Maatwerk Shopify applicaties', bullets: ['Custom functionaliteit', 'API integraties', 'App development'], category: 'post-launch', duration: '4-12 weken', impact: 'Op maat', price: '€3.000 - €15.000', emoji: '🧩', color: 'from-emerald-500 to-teal-500' },
-          { title: 'Audit & Improvements', description: 'Grondige analyse en optimalisatie van je shop', bullets: ['Onderzoek naar geschikte Apps', 'Verbeteren/conversie', '“Frustraties” identificeren', 'Data optimalisatie'], category: 'post-launch', duration: '2-4 weken', impact: '+25% conversie', price: '€900 - €2.500', emoji: '🧪', color: 'from-orange-500 to-red-600' },
-          { title: 'Subscriptions', description: 'Recurring revenue met subscriptions', bullets: ['Maandelijkse bestellingen', 'Subscription management', 'Customer portal'], category: 'post-launch', duration: '2-3 weken', impact: '+15% recurring revenue', price: '€800 - €2.400', emoji: '🔁', color: 'from-pink-500 to-purple-600' },
-          { title: 'Shipping & Billing', description: 'Optimalisatie van verzend- en betaalprocessen', bullets: ['Sendcloud', 'Sufio facture', 'Custom shipping rules'], category: 'post-launch', duration: '2-3 weken', impact: '+20% operations efficiency', price: '€1.000 - €3.000', emoji: '🚚', color: 'from-blue-500 to-cyan-500' },
-          { title: 'Newsletters', description: 'E-mailmarketing die converteert', bullets: ['Klaviyo flows', 'Segmenten', 'Newsletter templating', 'A/B testing', 'Loyalty Program'], category: 'post-launch', duration: '1-3 weken', impact: '+18% omzet uit mail', price: '€700 - €2.200', emoji: '✉️', color: 'from-indigo-500 to-violet-600' },
-          { title: 'Automations', description: 'Automatiseer processen', bullets: ['Shopify flows', 'n8n', 'Make'], category: 'post-launch', duration: '1-2 weken', impact: 'Minder handwerk', price: '€600 - €1.800', emoji: '⚙️', color: 'from-emerald-500 to-teal-500' },
-          { title: 'Custom webdesign', description: 'Maatwerk UI/UX', bullets: ['Design in Figma', 'UI/UX audit', 'Components design'], category: 'post-launch', duration: '2-6 weken', impact: '+10% conversie', price: '€1.500 - €6.000', emoji: '🖌️', color: 'from-pink-500 to-purple-600' },
-          { title: 'Reviews', description: 'Verzamel en toon reviews', bullets: ['Judge.me', 'Product review stars (PDP/PLP)', 'Store reviews op Homepage'], category: 'post-launch', duration: '1-2 weken', impact: '+8% CTR', price: '€400 - €1.200', emoji: '⭐', color: 'from-amber-500 to-yellow-400' },
-          { title: 'Loyalty', description: 'Bouw loyaliteit en herhaalaankopen', bullets: ['Smile.io', 'Discounts opzetten'], category: 'post-launch', duration: '1-2 weken', impact: '+12% herhaalaankopen', price: '€600 - €1.500', emoji: '🤝', color: 'from-orange-500 to-red-600' },
-          { title: 'Internationale groei', description: 'Schaal naar nieuwe markten', bullets: ['Uitbreiden qua markten', 'Translations', 'Market based features'], category: 'post-launch', duration: '3-6 weken', impact: 'Nieuwe markten', price: '€2.000 - €8.000', emoji: '🌍', color: 'from-blue-500 to-cyan-500' },
-          { title: 'SEA/Google Pakket', description: 'Groei via Google', bullets: ['Google Merchant Center', 'Performance rapportage', 'Google Ads', 'Google Analytics', 'A/B testing'], category: 'post-launch', duration: '2-4 weken', impact: '+25% verkeer', price: '€1.000 - €4.000', emoji: '📈', color: 'from-indigo-500 to-violet-600' }
-        ];
-
-        const existing = Array.isArray(rows) ? rows : [];
-        const existingTitles = new Set(existing.map(r => String(r.title || '').trim().toLowerCase()));
-        const missing = defaults.filter(d => !existingTitles.has(String(d.title).trim().toLowerCase()));
-
-        let inserted = [];
-        if (missing.length > 0) {
-          inserted = await Promise.all(missing.map(d => db.upsells.create(toDbUpsell(d))));
-        }
-
-        setUpsells([...(existing || []), ...inserted]);
+        setUpsells(Array.isArray(rows) ? rows : []);
       } catch (_) {
         setUpsells([]);
       } finally {
@@ -126,13 +121,13 @@ const UpsellsPage = () => {
             <div className={`absolute inset-0 bg-gradient-to-br ${s.color || (String(s.category).toLowerCase()==='development' ? 'from-pink-500 to-purple-600' : 'from-blue-500 to-cyan-500')} opacity-10 group-hover:opacity-20 transition-opacity z-0`}></div>
 
             {/* Action Icons */}
-            <div className="absolute top-3 right-3 z-10 flex items-center space-x-2">
+            <div className="absolute top-3 right-3 z-10 flex items-center space-x-1">
               <button
                 title="Bewerken"
-                onClick={(e)=>{ e.stopPropagation(); setSelected(s); setIsEditing(true); setEditData({ ...s, bulletsText: bulletsToText(s.bullets) }); }}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+                onClick={(e)=>{ e.stopPropagation(); setSelected(s); setIsEditing(true); setEditData({ ...s, bulletsText: bulletsToText(s.bullets), mailTemplate: getMailTemplate(s.id) }); }}
+                className="text-white/60 hover:text-white transition-colors p-1"
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-3 h-3" />
               </button>
               <button
                 title="Verwijderen"
@@ -145,9 +140,9 @@ const UpsellsPage = () => {
                     if (selected?.id === s.id) setSelected(null);
                   } catch (_) { alert('Verwijderen mislukt'); }
                 }}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+                className="text-red-400 hover:text-red-300 transition-colors p-1"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3 h-3" />
               </button>
             </div>
 
@@ -161,7 +156,7 @@ const UpsellsPage = () => {
                     <p className="text-white/70 text-sm">{s.description}</p>
                   </div>
                 </div>
-                <button onClick={(e)=>{ e.stopPropagation(); setIsEditing(false); onOpen && onOpen(s); }} className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-white/70">Details</button>
+                {/* details removed */}
               </div>
               <ul className="text-white/70 text-sm space-y-1 mb-4 list-disc list-inside">
                 {(s.bullets || []).slice(0, 4).map((b, i) => (<li key={i}>{b}</li>))}
@@ -170,6 +165,28 @@ const UpsellsPage = () => {
                 <span className="bg-white/10 px-2 py-1 rounded">{s.duration}</span>
                 <span className="text-emerald-300">{s.impact}</span>
                 <span className="bg-white/10 px-2 py-1 rounded">{s.price}</span>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={(e)=>{ e.stopPropagation(); setMailUpsell(s); const t = getMailTemplate(s.id); setMailText(t || ''); setShowMailModal(true); }}
+                  className="glass-effect px-3 py-1.5 rounded-lg text-white text-sm"
+                >
+                  Mail template
+                </button>
+                <button
+                  onClick={(e)=>{ 
+                    e.stopPropagation(); 
+                    let arr = [];
+                    try { arr = JSON.parse(localStorage.getItem('shopify-dashboard-projects') || '[]'); } catch {}
+                    setProjectsList(Array.isArray(arr) ? arr : []);
+                    setProjectToAddId((Array.isArray(arr) && arr[0]) ? String(arr[0].id) : '');
+                    setUpsellToAdd(s);
+                    setShowAddToProjectModal(true);
+                  }}
+                  className="btn-primary px-3 py-1.5 rounded-lg text-white text-sm"
+                >
+                  Voeg toe aan project
+                </button>
               </div>
             </div>
           </div>
@@ -223,6 +240,10 @@ const UpsellsPage = () => {
                 <label className="block text-white/70 text-sm mb-1">Bullets (1 per lijn of komma-gescheiden)</label>
                 <textarea value={newItem.bulletsText} onChange={(e)=>setNewItem({...newItem, bulletsText:e.target.value})} className="w-full input-plain rounded-lg px-3 py-2 h-24" />
               </div>
+              <div className="md:col-span-2">
+                <label className="block text-white/70 text-sm mb-1">Mail template</label>
+                <textarea value={newItem.mailTemplate} onChange={(e)=>setNewItem({...newItem, mailTemplate:e.target.value})} className="w-full input-plain rounded-lg px-3 py-2 h-24" placeholder="Optioneel: mailtemplate voor deze upsell" />
+              </div>
               <div>
                 <label className="block text-white/70 text-sm mb-1">Duur</label>
                 <input value={newItem.duration} onChange={(e)=>setNewItem({...newItem, duration:e.target.value})} className="w-full input-plain rounded-lg px-3 py-2" />
@@ -255,9 +276,10 @@ const UpsellsPage = () => {
                   if (!newItem.title) return;
                   try {
                     const row = await db.upsells.create(toDbUpsell(newItem));
+                    if (newItem.mailTemplate) setMailTemplate(row.id, newItem.mailTemplate);
                     setUpsells([row, ...upsells]);
                     setShowAdd(false);
-                    setNewItem({ title:'', description:'', bulletsText:'', category:'development', duration:'', impact:'', price:'', emoji:'✨', color:'from-pink-500 to-purple-600' });
+                    setNewItem({ title:'', description:'', bulletsText:'', category:'development', duration:'', impact:'', price:'', emoji:'✨', color:'from-pink-500 to-purple-600', mailTemplate:'' });
                   } catch (e) {
                     alert('Toevoegen mislukt');
                   }
@@ -286,7 +308,7 @@ const UpsellsPage = () => {
               </div>
               <div className="flex items-center space-x-2">
                 {!isEditing && (
-                  <button onClick={()=>{ setIsEditing(true); setEditData({ ...selected, bulletsText: bulletsToText(selected.bullets) }); }} className="glass-effect px-3 py-1.5 rounded text-white text-sm">Bewerken</button>
+                  <button onClick={()=>{ setIsEditing(true); setEditData({ ...selected, bulletsText: bulletsToText(selected.bullets), mailTemplate: getMailTemplate(selected.id) }); }} className="glass-effect px-3 py-1.5 rounded text-white text-sm">Bewerken</button>
                 )}
                 <button onClick={()=>setSelected(null)} className="text-white/90 hover:text-white text-lg">✕</button>
               </div>
@@ -353,6 +375,10 @@ const UpsellsPage = () => {
                     <label className="block text-white/70 text-sm mb-1">Bullets (1 per lijn of komma-gescheiden)</label>
                     <textarea value={editData.bulletsText} onChange={(e)=>setEditData({...editData, bulletsText:e.target.value})} className="w-full input-plain rounded-lg px-3 py-2 h-24" />
                   </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-white/70 text-sm mb-1">Mail template</label>
+                    <textarea value={editData.mailTemplate || ''} onChange={(e)=>setEditData({...editData, mailTemplate:e.target.value})} className="w-full input-plain rounded-lg px-3 py-2 h-24" placeholder="Optioneel: mailtemplate voor deze upsell" />
+                  </div>
                   <div>
                     <label className="block text-white/70 text-sm mb-1">Duur</label>
                     <input value={editData.duration || ''} onChange={(e)=>setEditData({...editData, duration:e.target.value})} className="w-full input-plain rounded-lg px-3 py-2" />
@@ -385,6 +411,7 @@ const UpsellsPage = () => {
                       try {
                         const payload = toDbUpsell(editData);
                         const row = await db.upsells.update(selected.id, payload);
+                        setMailTemplate(selected.id, editData.mailTemplate || '');
                         setUpsells(upsells.map(u => u.id === selected.id ? row : u));
                         setSelected(row);
                         setIsEditing(false);
@@ -398,6 +425,73 @@ const UpsellsPage = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Mail Template Modal */}
+      {showMailModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="gradient-card rounded-xl p-6 w-full max-w-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white text-xl font-semibold">Mail template</h2>
+              <button onClick={()=>setShowMailModal(false)} className="text-white/80 hover:text-white">✕</button>
+            </div>
+            <div className="space-y-3">
+              <textarea value={mailText} onChange={(e)=>setMailText(e.target.value)} className="w-full input-plain rounded-lg px-3 py-2 h-48" placeholder="Mailtemplate..." />
+              <div className="flex items-center gap-2 justify-end">
+                <button onClick={async()=>{ try { await navigator.clipboard.writeText(mailText || ''); } catch(_) {} }} className="glass-effect px-4 py-2 rounded-lg text-white">Kopieer</button>
+                <button onClick={()=>{ if (mailUpsell?.id != null) setMailTemplate(mailUpsell.id, mailText || ''); setShowMailModal(false); }} className="btn-primary px-4 py-2 rounded-lg text-white">Opslaan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add To Project Modal */}
+      {showAddToProjectModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="gradient-card rounded-xl p-6 w-full max-w-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white text-xl font-semibold">Voeg upsell toe aan project</h2>
+              <button onClick={()=>setShowAddToProjectModal(false)} className="text-white/80 hover:text-white">✕</button>
+            </div>
+            <div className="space-y-4">
+              {projectsList.length === 0 ? (
+                <div className="text-white/70 text-sm">Geen projecten gevonden.</div>
+              ) : (
+                <select value={projectToAddId} onChange={(e)=>setProjectToAddId(e.target.value)} className="w-full input-plain rounded-lg px-3 py-2">
+                  {projectsList.map(p => (
+                    <option key={p.id} value={String(p.id)} className="bg-gray-800">{p.name}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={()=>setShowAddToProjectModal(false)} className="glass-effect px-4 py-2 rounded-lg text-white">Annuleren</button>
+                <button onClick={() => {
+                  if (!projectToAddId || !upsellToAdd) { setShowAddToProjectModal(false); return; }
+                  try {
+                    const projects = JSON.parse(localStorage.getItem('shopify-dashboard-projects') || '[]');
+                    const updated = projects.map(pr => {
+                      if (String(pr.id) !== String(projectToAddId)) return pr;
+                      const topics = Array.isArray(pr.upsellTopics) ? pr.upsellTopics.slice() : [];
+                      const newTopic = {
+                        title: upsellToAdd.title,
+                        description: upsellToAdd.description || '',
+                        bullets: Array.isArray(upsellToAdd.bullets) ? upsellToAdd.bullets : [],
+                        price: upsellToAdd.price || '',
+                        emoji: upsellToAdd.emoji || '✨',
+                        createdAt: new Date().toISOString()
+                      };
+                      return { ...pr, upsellTopics: [...topics, newTopic] };
+                    });
+                    localStorage.setItem('shopify-dashboard-projects', JSON.stringify(updated));
+                    window.dispatchEvent(new Event('localStorageUpdate'));
+                  } catch(_) {}
+                  setShowAddToProjectModal(false);
+                }} className="btn-primary px-4 py-2 rounded-lg text-white">Voeg toe</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
