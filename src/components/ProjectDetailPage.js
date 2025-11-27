@@ -43,6 +43,21 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
   const [themesCatalog, setThemesCatalog] = useState([]);
   const [appToAddId, setAppToAddId] = useState('');
   const [themeToAddId, setThemeToAddId] = useState('');
+  const [showSeoChecklist, setShowSeoChecklist] = useState(false);
+  const [seoChecklistItems, setSeoChecklistItems] = useState([
+    { id: 1, label: 'Meta title optimization', checked: false },
+    { id: 2, label: 'Meta descriptions', checked: false },
+    { id: 3, label: 'H1 tags', checked: false },
+    { id: 4, label: 'Image alt texts', checked: false },
+    { id: 5, label: 'URL structure', checked: false },
+    { id: 6, label: 'Internal linking', checked: false },
+    { id: 7, label: 'Sitemap submitted', checked: false },
+    { id: 8, label: 'robots.txt configured', checked: false },
+    { id: 9, label: 'Schema markup', checked: false },
+    { id: 10, label: 'Mobile optimization', checked: false },
+    { id: 11, label: 'Page speed optimization', checked: false },
+    { id: 12, label: 'SSL certificate', checked: false }
+  ]);
 
   useEffect(() => {
     const boot = async () => {
@@ -133,7 +148,9 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
         setThemesCatalog(Array.isArray(themes) ? themes : []);
         const projects = JSON.parse(localStorage.getItem('shopify-dashboard-projects') || '[]');
         const me = projects.find(p => p.id === (project?.id));
-        if (me) setProject(me);
+        if (me) {
+          setProject(me);
+        }
       } catch(_) {}
     };
     window.addEventListener('localStorageUpdate', onLs);
@@ -359,13 +376,7 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
     setSeoScanRunning(false);
   };
 
-  const milestones = [
-    { id: 1, title: 'Project Setup', completed: true, date: '2024-01-01' },
-    { id: 2, title: 'Design Phase', completed: true, date: '2024-01-15' },
-    { id: 3, title: 'Development', completed: project.progress > 50, date: '2024-02-01' },
-    { id: 4, title: 'Testing', completed: project.progress > 80, date: '2024-02-15' },
-    { id: 5, title: 'Launch', completed: project.status === 'Completed', date: project.deadline }
-  ];
+  // Milestones removed per user request
 
   const handleMakeOffer = () => {
     try {
@@ -656,25 +667,13 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
             </div>
           </div>
 
-          {/* Topic breakdown */}
-          <div className="grid grid-cols-2 gap-4">
-            {(seoResult?.topics || [
-              { key: 'Performance', score: (project.seoScore ?? 70) - 10 },
-              { key: 'Accessibility', score: (project.seoScore ?? 70) - 5 },
-              { key: 'Best Practices', score: (project.seoScore ?? 70) },
-              { key: 'SEO', score: (project.seoScore ?? 70) - 3 },
-            ]).map((t) => (
-              <div key={t.key} className="bg-white/5 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-white/80 text-sm">{t.key}</span>
-                  <span className="text-white text-sm font-semibold">{Math.max(0, Math.min(100, Math.round(t.score)))}</span>
-                </div>
-                <div className="w-full bg-white/20 rounded-full h-2">
-                  <div className="bg-gradient-blue-purple h-2 rounded-full" style={{ width: `${Math.max(0, Math.min(100, t.score))}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* SEO Checklist Button */}
+          <button
+            onClick={() => setShowSeoChecklist(true)}
+            className="w-full btn-primary px-4 py-2 rounded-lg text-white font-medium"
+          >
+            SEO Checklist
+          </button>
         </div>
 
         {/* Team Members */}
@@ -694,31 +693,6 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
                 <div>
                   <p className="text-white font-medium">{member.trim()}</p>
                   <p className="text-white/60 text-sm">Developer</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Project Milestones */}
-        <div className="gradient-card rounded-xl p-6">
-          <h3 className="text-white text-xl font-semibold mb-4 flex items-center">
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Milestones
-          </h3>
-          <div className="space-y-4">
-            {milestones.map((milestone) => (
-              <div key={milestone.id} className="flex items-center">
-                <div className={`w-4 h-4 rounded-full mr-3 ${milestone.completed ? 'bg-green-400' : 'bg-white/20'}`}>
-                  {milestone.completed && (
-                    <CheckCircle className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className={`font-medium ${milestone.completed ? 'text-white' : 'text-white/60'}`}>
-                    {milestone.title}
-                  </p>
-                  <p className="text-white/50 text-sm">{milestone.date}</p>
                 </div>
               </div>
             ))}
@@ -945,6 +919,46 @@ const ProjectDetailPage = ({ projectId, setActiveTab, setSelectedProject }) => {
           )}
         </div>
       </div>
+
+      {/* SEO Checklist Modal */}
+      {showSeoChecklist && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="gradient-card rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white text-xl font-semibold">SEO Checklist</h3>
+              <button onClick={() => setShowSeoChecklist(false)} className="text-white/70 hover:text-white">
+                <span className="text-lg">✕</span>
+              </button>
+            </div>
+            <div className="space-y-3">
+              {seoChecklistItems.map((item) => (
+                <div key={item.id} className="flex items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={item.checked}
+                    onChange={(e) => {
+                      setSeoChecklistItems(prev => prev.map(i => 
+                        i.id === item.id ? { ...i, checked: e.target.checked } : i
+                      ));
+                    }}
+                    className="w-5 h-5 rounded border-2 border-white/30 bg-white/10 checked:bg-blue-500 checked:border-blue-500 cursor-pointer"
+                  />
+                  <label className="text-white ml-3 cursor-pointer flex-1" onClick={() => {
+                    setSeoChecklistItems(prev => prev.map(i => 
+                      i.id === item.id ? { ...i, checked: !i.checked } : i
+                    ));
+                  }}>
+                    {item.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setShowSeoChecklist(false)} className="btn-primary px-6 py-2 rounded-lg text-white font-medium">Sluiten</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success Modal */}
       {showSuccessModal && (
